@@ -33,8 +33,8 @@ from docai.kie import KIEModel
 # Load trained models from the HF registry (Space has no /data workspace).
 _model_file = hf_hub_download("banhchungtuongot/hybrid-docai-kie", "kie/v4/model.joblib")
 pipeline._kie = KIEModel.load(_model_file)
-_dt_file = hf_hub_download("banhchungtuongot/hybrid-docai-kie", "doctype/v2/model.joblib")
-_clf._loaded = _clf.DocTypeClassifier.load(_dt_file)   # multi-document router
+_dt_file = hf_hub_download("banhchungtuongot/hybrid-docai-kie", "doctype/v3/model.joblib")
+_clf._loaded = _clf.DocTypeClassifier.load(_dt_file)   # 3-way doc-type router
 
 
 def infer(image):
