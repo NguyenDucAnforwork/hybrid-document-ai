@@ -51,7 +51,24 @@ Ghi **quyết định + lý do + đánh đổi**. Phần này nhà tuyển dụn
 - **[P4] MLOps:** eval-gate thr=0.6, macro-F1 0.865 → PASS. Drift hữu ích nhất: phân phối `field_confidence` + `input_blur_score`. `np.float64` không serialize YAML → phải sanitize trong registry.
 - **[P5] Wrap:** cắt Donut local (cần torch, đụng disk) → VLM `api` mode. Thêm giờ: ràng buộc candidate merchant + LayoutLMv3 ONNX + chạy Triton/vLLM thật trên H100.
 
+## v3→v4: chuyển sang DATA THẬT (SROIE) + metric mạnh + calibration
+Reviewer chỉ ra: synthetic quá sạch, metric yếu, MLOps sơ sài. Đã xử lý:
+- **Data thật:** 626 receipt scan SROIE (Malaysia, thermal-printer, nhiễu thật) + **augmentation banking** (`docai/augment.py`: tối/nghiêng/mờ/motion-blur/nhiễu/rách/fade/low-res/JPEG/perspective) cho **robustness-curve** + receipt **tiếng Việt** có dấu. Train kết hợp SROIE+synthetic (`kie:v4`).
+- **Bug quan trọng (quality gate):** ảnh SROIE rộng ~463px < `MIN_DIM=480` → quality gate **chặn cứng low-res** → trả None toàn bộ (merchant/date/total = None). Đây là lý do v3 ban đầu macro chỉ 0.22. **Sửa:** low-res là *flag* không phải *blocker*; luôn OCR (upscale ảnh nhỏ ×→720), router quyết review. → date/total nhảy vọt.
+- **Money parsing đa domain:** SROIE total là thập phân "9.00"/"1,234.56" còn VND "235,000" — regex cũ hỏng. Tổng quát hoá: strip date trước, `,`=nghìn `.`=thập phân, trả float. 
+- **Metric mạnh:** thêm **CER, ANLS (ngưỡng 0.5), ECE (calibration)** ngoài exact-match/F1. Với field text dài như merchant, exact-match≈0 nhưng ANLS cho điểm partial — exact-match là metric **sai** cho field đó.
+- **merchant_name là field khó kinh điển:** OCR đọc tên công ty dính liền không dấu cách + nhiều dòng + watermark "tan woon yann" ở mọi ảnh SROIE → chọn nhầm dòng. Quyết định trung thực: report ANLS + **để confidence router đẩy sang human review** thay vì giả vờ đúng. 
+- **Calibration (CalibratedClassifierCV sigmoid):** confidence trở nên đáng tin → router gửi đúng doc bất định sang review/VLM; đo bằng ECE. Đây là MLOps "trust", không chỉ accuracy.
+- **MLOps depth:** training-pipeline DAG (`mlops/pipeline.py`: ingest→validate→train→eval→register, có cache/retry/resume + manifest lineage) + KFP artifact; registry có **stage dev/staging/prod/archived + lineage**; data validation gate; **chaos engineering** (`mlops/chaos.py`); KServe/alerts/DR runbook. Xem `docs/mlops.md`.
+
+## Robustness findings (real SROIE + augmentation, n=30, severity 0.6)
+- **Router bắt được blur/motion-blur:** OCR confidence sụp → `needs_review`=1.0 (từ chối rác đúng). motion_blur F1 0.015, mean_conf 0.30 → calibration đúng ở case này.
+- **Router KHÔNG bắt rotate/perspective:** CER nổ (1.18/1.39) nhưng confidence vẫn ~0.87, `needs_review`≈0.03 → **output sai mà tự tin cao** (ECE 0.51–0.55). Vì confidence phản ánh độ chắc *chọn dòng* + *OCR tự báo*, mà OCR vẫn "tự tin" trên chữ bị méo hình học. **Fix:** thêm bước deskew/perspective-correction + geometry-aware confidence. Đây là failure mà một con số "accuracy sạch" che giấu — lý do phải đo robustness-curve.
+- **total_amount confidence không phân biệt đúng/sai** (0.85 khi đúng = 0.85 khi sai): classifier chấm chọn-dòng, không chấm đúng-transcription của OCR. → cần validation rule (checksum/range) + OCR-confidence-aware ensemble.
+- dark/fade được dung nạp (OCR bền); noise/tear/jpeg/low_res giảm vừa.
+
 ## Nếu làm lại / có thêm thời gian
-- Thay Tier-1 sklearn bằng LayoutLMv3 ONNX (so F1/latency/disk).
-- Chạy Triton + vLLM thật trên H100, đo dynamic-batching throughput thực.
-- Thêm drift detector thống kê (PSI) + alerting; experiment tracking (MLflow).
+- **Deskew/perspective-correction trước OCR** (điểm yếu lớn nhất trong robustness) + geometry-aware confidence.
+- merchant_name: ràng buộc header-block + NER (LayoutLMv3 ONNX) thay token-line heuristic.
+- Chạy Triton + vLLM + KServe + KFP thật trên H100/k8s, đo throughput batching + autoscale.
+- Drift detector thống kê (PSI) + Grafana + OpenTelemetry tracing + experiment tracking (MLflow).

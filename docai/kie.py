@@ -23,19 +23,26 @@ ANCHORS = {
     "payment_method": ["cash", "card", "qr", "visa", "momo", "tien mat",
                        "tiền mặt", "the", "thẻ", "payment", "chuyen khoan"],
 }
-# Money requires thousands separators (VND style) so dates/IDs are NOT matched.
-MONEY_RE = re.compile(r"\d{1,3}(?:[.,]\d{3})+")
 DATE_RE = re.compile(r"\d{1,2}\s*[/\-.]\s*\d{1,2}\s*[/\-.]\s*\d{2,4}")
 ID_RE = re.compile(r"[A-Z]{1,4}\d{3,}")
+# Money: thousands-grouped (VND "235,000"), decimal cents (SROIE "9.00",
+# "1,234.56"), or a bare >=3-digit run. Dates are stripped first so "25.12.2018"
+# is not parsed as money. Convention: ',' = thousands (drop), '.' = decimal.
+MONEY_RE = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+\.\d{2}|\d{3,}")
 
 
 # ---- shared normalization (MUST match between train / infer / eval) -------
 def norm_money(s: str):
-    m = MONEY_RE.search(s or "")
+    """Return a canonical float amount, or None. Robust across VND/decimal."""
+    t = DATE_RE.sub(" ", s or "")            # don't mistake a date for money
+    m = MONEY_RE.search(t)
     if not m:
         return None
-    digits = re.sub(r"[^\d]", "", m.group())
-    return int(digits) if digits else None
+    raw = m.group().replace(",", "")          # commas are thousands separators
+    try:
+        return round(float(raw), 2)
+    except ValueError:
+        return None
 
 
 def norm_date(s: str):

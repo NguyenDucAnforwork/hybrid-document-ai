@@ -25,10 +25,12 @@ def test_quality_blur_flag():
     assert q.is_blurry  # flat image -> low laplacian variance
 
 
-def test_quality_lowres():
+def test_quality_lowres_is_flag_not_blocker():
+    # Real bank scans are often small; low-res is a FLAG, not a hard gate —
+    # we still attempt OCR (with upscaling) and let the router decide review.
     small = np.random.randint(0, 255, (100, 100, 3), np.uint8)
     q = check_quality(small)
-    assert q.low_resolution and not q.quality_pass
+    assert q.low_resolution and "low_resolution" in q.issues
 
 
 def test_batcher_groups():

@@ -1,0 +1,27 @@
+# KServe InferenceService (MLOps - Model Serving). Production target on k8s.
+# Runtime abstraction + autoscaling + scale-to-zero. The OCR ONNX models can be
+# served by the Triton runtime; the FastAPI app is the transformer/predictor.
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: hybrid-docai
+  annotations:
+    autoscaling.knative.dev/target: "10"        # target concurrent req per pod
+    serving.kserve.io/enable-prometheus-scraping: "true"
+spec:
+  predictor:
+    minReplicas: 0           # scale-to-zero when idle (cost); cold-start tradeoff
+    maxReplicas: 10          # scale-out under load
+    scaleTarget: 10
+    containers:
+      - name: kserve-container
+        image: ghcr.io/nguyenducanforwork/hybrid-docai:latest
+        ports: [{containerPort: 8000}]
+        resources:
+          requests: {cpu: "1", memory: 2Gi}
+          limits: {cpu: "2", memory: 4Gi, nvidia.com/gpu: "1"}   # 4GB VRAM cap
+        env:
+          - {name: DOCAI_VLM_MODE, value: "remote_gpu"}
+          - {name: VLM_API_BASE, value: "http://qwen-vl-predictor/v1"}
+  # Optional: a second InferenceService for the Qwen-VL fallback served by vLLM,
+  # giving independent autoscaling for the expensive hard-case path.

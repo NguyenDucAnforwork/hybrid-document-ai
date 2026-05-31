@@ -1,0 +1,47 @@
+{
+  "run_id": "final_demo",
+  "steps": {
+    "ingest": {
+      "result": {
+        "sroie": true,
+        "synth": true
+      },
+      "dur_s": 0.0,
+      "attempt": 0
+    },
+    "validate_data": {
+      "result": {
+        "coverage": {
+          "date": 0.9065934065934066,
+          "total_amount": 0.9981684981684982
+        },
+        "n": 546
+      },
+      "dur_s": 0.05,
+      "attempt": 0
+    },
+    "train": {
+      "result": {
+        "version": "v4"
+      },
+      "dur_s": 24.51,
+      "attempt": 0
+    },
+    "evaluate": {
+      "result": {
+        "gate_pass": true,
+        "tail": "ds\": [\n    \"merchant_name\",\n    \"date\",\n    \"total_amount\"\n  ],\n  \"all_required_correct_rate\": 0.388,\n  \"latency_ms_p50\": 1032.7,\n  \"latency_ms_p95\": 1793.2,\n  \"threshold\": 0.2,\n  \"gate_pass\": true\n}\n"
+      },
+      "dur_s": 87.02,
+      "attempt": 0
+    },
+    "register_production": {
+      "result": {
+        "promoted": "v4",
+        "stage": "production"
+      },
+      "dur_s": 0.03,
+      "attempt": 0
+    }
+  }
+}

@@ -1,0 +1,12 @@
+gradio==4.44.1
+rapidocr-onnxruntime
+opencv-python-headless
+pillow
+numpy
+scikit-learn
+joblib
+pydantic>=2
+prometheus-client
+python-Levenshtein
+pyyaml
+huggingface_hub

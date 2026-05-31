@@ -13,6 +13,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.calibration import CalibratedClassifierCV
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -56,12 +57,17 @@ def field_exact_match(model: KIEModel, records):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", required=True, help="dir with labels.json")
+    ap.add_argument("--data", required=True, nargs="+",
+                    help="one or more dirs each containing labels.json (real SROIE + synthetic)")
     ap.add_argument("--version", default="v1")
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()
 
-    records = json.loads((Path(args.data) / "labels.json").read_text())
+    records = []
+    for d in args.data:
+        recs = json.loads((Path(d) / "labels.json").read_text())
+        records.extend(recs)
+        print(f"  loaded {len(recs)} from {d}")
     rng = np.random.RandomState(args.seed)
     idx = rng.permutation(len(records))
     split = int(len(records) * 0.8)
@@ -69,8 +75,11 @@ def main():
     test = [records[i] for i in idx[split:]]
 
     Xtr, ytr = build_xy(train)
+    # Calibrated probabilities so confidence is trustworthy -> the router sends
+    # genuinely-uncertain docs (not just low-scoring) to human review / VLM.
+    base = LogisticRegression(max_iter=1000, class_weight="balanced")
     clf = make_pipeline(StandardScaler(),
-                        LogisticRegression(max_iter=1000, class_weight="balanced"))
+                        CalibratedClassifierCV(base, method="sigmoid", cv=3))
     clf.fit(Xtr, ytr)
 
     model = KIEModel(clf=clf, version=args.version)
@@ -87,8 +96,12 @@ def main():
         "field_exact_match_test": per_test, "macro_test": macro_test,
     }
     (out / "metrics.json").write_text(json.dumps(metrics, indent=2))
+    lineage = {"datasets": list(args.data), "seed": args.seed,
+               "n_train_records": len(train), "n_examples": int(len(ytr)),
+               "model": "StandardScaler+CalibratedClassifierCV(LogReg,sigmoid)"}
     registry.register("kie", args.version, str(out / "model.joblib"), metrics,
-                      dt.datetime.now().isoformat(timespec="seconds"))
+                      dt.datetime.now().isoformat(timespec="seconds"),
+                      stage="staging", lineage=lineage)
     print(json.dumps(metrics, indent=2))
     print(f"\nRegistered kie:{args.version} (active). Saved -> {out}")
 

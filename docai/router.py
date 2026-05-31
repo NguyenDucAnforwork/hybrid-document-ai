@@ -9,13 +9,16 @@ from .config import REQUIRED_FIELDS, MIN_FIELD_CONFIDENCE
 
 def route_decision(fields: dict) -> tuple[bool, bool, list[str]]:
     """Return (needs_review, should_vlm, reasons)."""
+    # Review is driven by the REQUIRED fields only (date+amount for a payment
+    # doc). Optional fields (merchant/invoice/payment) being low-confidence must
+    # not saturate the router — else every real-world doc gets flagged and the
+    # router loses all discriminating power.
     reasons = []
     for rf in REQUIRED_FIELDS:
-        v = fields.get(rf, (None, 0.0))
-        if v[0] is None:
+        val, conf = fields.get(rf, (None, 0.0))
+        if val is None:
             reasons.append(f"missing:{rf}")
-    for f, (val, conf) in fields.items():
-        if val is not None and conf < MIN_FIELD_CONFIDENCE:
-            reasons.append(f"low_conf:{f}={conf}")
+        elif conf < MIN_FIELD_CONFIDENCE:
+            reasons.append(f"low_conf:{rf}={conf}")
     needs_review = len(reasons) > 0
     return needs_review, needs_review, reasons

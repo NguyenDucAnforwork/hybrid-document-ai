@@ -38,7 +38,10 @@ def check_quality(image_bgr: np.ndarray) -> QualityReport:
     if is_rotated:
         issues.append("rotated_image")
 
-    quality_pass = not (is_blurry or low_res)
+    # low_res is a FLAG, not a hard blocker: real bank docs are often small
+    # scans — we still attempt OCR (with upscaling) and let the confidence
+    # router decide human review. Only severe blur fails the gate.
+    quality_pass = not is_blurry
     return QualityReport(
         blur_score=round(blur, 2), is_blurry=is_blurry, is_dark=is_dark,
         low_resolution=low_res, is_rotated=is_rotated, quality_pass=quality_pass,

@@ -271,3 +271,10 @@ curl localhost:8000/metrics ; pytest -q
 | P5 Deploy + docs | ✅ | Dockerfile/compose/hpa/triton/ci; HF+GitHub pushed; test.ipynb |
 
 **Artifacts:** GitHub https://github.com/NguyenDucAnforwork/hybrid-document-ai · HF model `banhchungtuongot/hybrid-docai-kie` · HF dataset `banhchungtuongot/hybrid-docai-receipts`
+
+### Nâng cấp v3→v4 (theo phản hồi reviewer): data thật + metric mạnh + MLOps sâu
+- **Data thật:** SROIE 2019 (626 receipt scan thật) + `docai/augment.py` (11 degradations banking: tối/nghiêng/mờ/motion/nhiễu/rách/fade/low-res/JPEG/perspective + mixed_hard) + receipt tiếng Việt. Train kết hợp SROIE+synthetic.
+- **Metric mạnh:** CER + ANLS + ECE (calibration) + **robustness-curve** theo từng degradation (`scripts/eval_robustness.py`, `eval/metrics.py`).
+- **Model:** kie **v4** = calibrated (CalibratedClassifierCV) + layout line-grouping + money đa-domain. Registry có **stage (dev/staging/prod/archived) + lineage**.
+- **MLOps sâu (4 bài giảng):** training-pipeline DAG `mlops/pipeline.py` (validate→train→eval-gate→register, cache/retry/resume, manifest lineage) + KFP artifact; data validation gate; chaos engineering `mlops/chaos.py`; KServe `deploy/kserve.yaml` (autoscale/scale-to-zero); `monitoring/alerts.yaml`; `docs/mlops.md` + `docs/runbook-dr.md`.
+- **🟢 Live demo:** https://huggingface.co/spaces/banhchungtuongot/hybrid-docai-demo (Gradio, chạy pipeline thật).

@@ -39,12 +39,12 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
 
     q = check_quality(img)
     metrics.blur_observed.observe(q.blur_score)
-    if not q.quality_pass:
-        metrics.human_review_total.inc()
-        return DocumentResult(
-            document_id=doc_id, quality=q, needs_human_review=True,
-            fields={f: FieldValue() for f in ALL_FIELDS},
-            model_versions={"ocr": OCR_VERSION})
+
+    # Preprocess: upscale small scans so OCR has enough resolution (real docs).
+    h, w = img.shape[:2]
+    if min(h, w) < 720:
+        scale = 720.0 / min(h, w)
+        img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_CUBIC)
 
     with metrics.stage_latency.labels("ocr").time():
         tokens = run_ocr(img)
@@ -75,6 +75,7 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
             if conf < 0.75:
                 metrics.low_confidence_total.inc()
 
+    needs_review = needs_review or (not q.quality_pass)   # severe blur -> human
     if needs_review:
         metrics.human_review_total.inc()
     metrics.documents_processed_total.labels("needs_review" if needs_review else "success").inc()

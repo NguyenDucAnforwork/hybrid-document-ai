@@ -6,8 +6,18 @@ from pathlib import Path
 # Code repo root (this lives under /home/nvidia-lab/nltk_data as requested)
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# Heavy-artifact workspace on /data (631GB free) — /home is full.
-WORKSPACE = Path(os.environ.get("DOCAI_WORKSPACE", "/data/nvidia-ai-workspace"))
+# Heavy-artifact workspace. Dev: /data (631GB; /home full). Elsewhere (e.g. HF
+# Space): fall back to a writable tmp dir so import never fails on mkdir.
+def _default_workspace() -> str:
+    env = os.environ.get("DOCAI_WORKSPACE")
+    if env:
+        return env
+    if os.path.isdir("/data") and os.access("/data", os.W_OK):
+        return "/data/nvidia-ai-workspace"
+    return "/tmp/docai-workspace"
+
+
+WORKSPACE = Path(_default_workspace())
 DATA_DIR = Path(os.environ.get("DOCAI_DATA", WORKSPACE / "data"))
 MODELS_DIR = Path(os.environ.get("DOCAI_MODELS", WORKSPACE / "models"))
 ARTIFACTS_DIR = Path(os.environ.get("DOCAI_ARTIFACTS", WORKSPACE / "artifacts"))
@@ -15,10 +25,16 @@ META_DB = Path(os.environ.get("DOCAI_DB", WORKSPACE / "meta.db"))
 LOGS_DIR = REPO_ROOT / "docs" / "logs"
 
 for _p in (DATA_DIR, MODELS_DIR, ARTIFACTS_DIR, LOGS_DIR):
-    _p.mkdir(parents=True, exist_ok=True)
+    try:
+        _p.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
 
-# Required fields for a receipt; missing any -> needs_human_review.
-REQUIRED_FIELDS = ["merchant_name", "date", "total_amount"]
+# Required fields for a PAYMENT document = what reconciliation needs (date+amount).
+# merchant_name is valuable but optional: real OCR reads store names unreliably,
+# so making it required would flag ~every doc and the router would lose its
+# discriminating power. This is a product decision, documented in lessons-learned.
+REQUIRED_FIELDS = ["date", "total_amount"]
 ALL_FIELDS = ["merchant_name", "date", "total_amount", "invoice_id", "payment_method"]
 
 # Confidence router thresholds.

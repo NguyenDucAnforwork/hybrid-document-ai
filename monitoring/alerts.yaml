@@ -1,0 +1,29 @@
+# Prometheus alerting rules (MLOps monitoring). Alert on model/system anomalies.
+groups:
+  - name: docai
+    rules:
+      - alert: HighHumanReviewRate
+        expr: rate(human_review_total[10m]) / rate(documents_processed_total[10m]) > 0.5
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: "Human-review rate >50% — possible model/data drift"}
+      - alert: VLMFallbackSpike
+        expr: rate(vlm_fallback_total[10m]) > 0.3
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: "VLM fallback spiking — OCR/KIE quality dropping (cost+latency risk)"}
+      - alert: HighLatencyP95
+        expr: histogram_quantile(0.95, rate(stage_latency_seconds_bucket{stage="total"}[5m])) > 3
+        for: 5m
+        labels: {severity: critical}
+        annotations: {summary: "p95 end-to-end latency > 3s"}
+      - alert: InputBlurDrift
+        expr: histogram_quantile(0.5, rate(input_blur_score_bucket[1h])) < 50
+        for: 30m
+        labels: {severity: warning}
+        annotations: {summary: "Input image quality distribution shifted (blurrier) — domain shift"}
+      - alert: ConfidenceDrop
+        expr: histogram_quantile(0.5, rate(field_confidence_bucket[1h])) < 0.6
+        for: 30m
+        labels: {severity: warning}
+        annotations: {summary: "Median field confidence dropped — model degradation / OOD inputs"}
