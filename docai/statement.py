@@ -11,21 +11,34 @@ from .doctypes import BANK_STATEMENT
 from .kie import norm_date, group_lines
 
 _ACC = re.compile(r"\d{8,}")
-_MONEY = re.compile(r"-?\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|-?\d+\.\d{2}|-?\d{4,}")
+_MONEY = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+\.\d{2}|\d{3,}")
 _DATE = re.compile(r"\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4}")
-_COLS = {"date": ["date", "ngay", "ngày"], "description": ["desc", "description", "noi dung", "nội dung"],
-         "amount": ["amount", "so tien", "số tiền", "debit", "credit"],
-         "balance": ["balance", "so du", "số dư"]}
+_FOOTER = ["total", "tong", "tổng", "closing", "ending", "so du cuoi", "số dư cuối",
+           "c/f", "carried"]
+_COLS = {"date": ["date", "ngay", "ngày"],
+         "description": ["desc", "description", "dien giai", "diễn giải", "noi dung", "nội dung"],
+         "amount": ["amount", "so tien", "số tiền"],
+         "debit": ["debit", "no ", "nợ", "withdrawal"],
+         "credit": ["credit", "co ", "có", "deposit"],
+         "balance": ["balance", "so du", "số dư"],
+         "ref": ["ref", "soct", "so ct", "số ct"]}
 
 
 def signed_money(s: str):
-    m = _MONEY.search((s or "").replace(" ", ""))
+    """Parse amount with sign. Handles -x, (x)=neg, 'x DR'=neg, 'x CR'=pos."""
+    s = (s or "").strip()
+    neg = (s.startswith("(") and ")" in s) or s.lstrip().startswith("-")
+    up = s.upper()
+    if re.search(r"\bDR\b", up):
+        neg = True
+    m = _MONEY.search(s.replace(" ", ""))
     if not m:
         return None
     try:
-        return round(float(m.group().replace(",", "")), 2)
+        v = round(float(m.group().replace(",", "")), 2)
     except ValueError:
         return None
+    return -v if neg else v
 
 
 def _rows_raw(tokens):
@@ -72,15 +85,22 @@ def extract_table(tokens):
             col = min(order, key=lambda c: abs(_cx(t) - centers[c]))
             cells[col].append(t["text"])
         joined = {c: " ".join(cells[c]).strip() for c in order}
-        # a transaction row needs a date and a money value
-        if not (_DATE.search(joined.get("date", "")) and "amount" in joined):
+        desc = joined.get("description", "")
+        # skip footer/summary rows (Total / Closing / Tổng ...) and non-date rows
+        if any(k in desc.lower() for k in _FOOTER) or not _DATE.search(joined.get("date", "")):
             continue
-        amt = signed_money(joined.get("amount", ""))
+        # amount: single column, or derive from debit/credit pair
+        if joined.get("amount"):
+            amt = signed_money(joined["amount"])
+        else:
+            deb = signed_money(joined.get("debit", "")) or 0.0
+            cred = signed_money(joined.get("credit", "")) or 0.0
+            amt = (abs(cred) - abs(deb)) if (deb or cred) else None
         bal = signed_money(joined.get("balance", ""))
         if amt is None and bal is None:
             continue
         items.append({"date": norm_date(joined.get("date", "")),
-                      "description": joined.get("description", "").lower() or None,
+                      "description": desc.lower() or None,
                       "amount": amt, "balance": bal})
     return items
 

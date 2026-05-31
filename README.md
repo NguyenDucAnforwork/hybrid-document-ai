@@ -27,20 +27,32 @@ pipeline, serving and operations. Here the model is **1 of 3 layers**:
 with a confidence router that sends uncertain docs to human review / VLM instead of
 silently emitting wrong data.
 
-## Multi-document (not receipt-only)
+## Multi-document (not receipt-only) — 3 types
 A bank needs more than invoices. The pipeline is **document-type-agnostic** — only the
-KIE schema/anchors/prompt are per-type (`docai/doctypes.py`); quality/OCR/router/VLM/MLOps
-are shared. A learned **document-type router** (`docai/classifier.py`) classifies the doc
-first, then dispatches to the right extractor:
+schema/anchors/prompt are per-type (`docai/doctypes.py`); quality/OCR/router/VLM/MLOps are
+shared. A learned **document-type router** (`docai/classifier.py`) classifies first, then
+dispatches:
 - **receipt/invoice** → calibrated sklearn KIE (key-value).
 - **bank statement** → header KIE **+ transaction TABLE parsing** (`docai/statement.py`:
-  layout-graph row clustering + column detection → list of `{date, description, amount, balance}`).
+  row clustering + column detection → `{date, description, amount, balance}`).
+- **payment order / ủy nhiệm chi** → generic anchor KV extractor (`docai/kv.py`).
 
-Measured on a held-out mix (real SROIE receipts + synthetic statements, `docs/logs/multidoc_*.md`):
-**doc-type routing accuracy 1.00**, statement **table row-F1 1.00 / amount-accuracy 1.00**,
-header exact-match: account_number/holder/period 1.00, balances 0.77–0.90. Adding the next
-type (eKYC ID, payment slip, form…) = one schema entry + (optionally) one extractor; the rest
-is reused. See `docs/mlops.md`.
+Adding a type = one registry entry (+ optional extractor); everything else is reused.
+
+### Honest results on **HARD** test data (`docs/logs/multidoc_*.md`)
+Statements use a **hard generator** (random column schema/order incl. separate Debit/Credit,
+parenthesis & CR/DR negatives, VN/EN headers, footer distractor rows, x-jitter, multi-word
+descriptions) — *not* the easy single-layout that gave a misleading 1.00.
+
+| | 3-way routing | stmt row-F1 | stmt amount-acc | stmt desc-acc | payment_order (mean field) |
+|---|---|---|---|---|---|
+| **HARD** | 1.00 | 0.99 | **0.35** | **0.55** | ~0.95 |
+
+**Key finding (the point of the harder data):** row *detection* is robust (0.99), but **amount
+and description accuracy collapse to 0.35 / 0.55 on heterogeneous layouts** — rule-based table
+parsing does NOT generalize across bank formats. Production fix: a **learned table model**
+(LayoutLMv3 / Table-Transformer) or routing hard statements to the **VLM**. Routing stays 1.00
+because the three types differ strongly in global features (that part is genuinely easy).
 
 ## Data & evaluation (the production-hard part)
 - **Real data:** SROIE 2019 — **626 real scanned receipts** (Malaysian, thermal-printer, genuinely noisy). Token-level gold → `merchant_name / date / total_amount`.

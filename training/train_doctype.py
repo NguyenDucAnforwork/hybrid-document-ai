@@ -34,19 +34,26 @@ def _xy(recs, label):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--receipts", required=True, nargs="+", help="one or more receipt label dirs")
-    ap.add_argument("--statements", required=True)
+    ap.add_argument("--statements", required=True, nargs="+")
+    ap.add_argument("--payment-orders", nargs="+", default=[])
     ap.add_argument("--version", default="v1")
     ap.add_argument("--seed", type=int, default=42)
     args = ap.parse_args()
 
-    rcpt = []
-    for d in args.receipts:
-        rcpt += json.loads((Path(d) / "labels.json").read_text())
-    stmt = json.loads((Path(args.statements) / "labels.json").read_text())
+    def load_many(dirs):
+        recs = []
+        for d in dirs:
+            recs += json.loads((Path(d) / "labels.json").read_text())
+        return recs
+
+    rcpt = load_many(args.receipts)
+    stmt = load_many(args.statements)
+    po = load_many(args.payment_orders)
     Xr, yr = _xy(rcpt, "receipt")
     Xs, ys = _xy(stmt, "bank_statement")
-    X = np.array(Xr + Xs, float)
-    y = np.array(yr + ys)
+    Xp, yp = _xy(po, "payment_order")
+    X = np.array(Xr + Xs + Xp, float)
+    y = np.array(yr + ys + yp)
     rng = np.random.RandomState(args.seed)
     idx = rng.permutation(len(y))
     sp = int(len(y) * 0.8)
@@ -58,7 +65,8 @@ def main():
     out = MODELS_DIR / "doctype" / args.version
     out.mkdir(parents=True, exist_ok=True)
     DocTypeClassifier(clf=clf, version=args.version).save(out / "model.joblib", args.version)
-    metrics = {"test_accuracy": round(acc, 3), "n_receipt": len(rcpt), "n_statement": len(stmt)}
+    metrics = {"test_accuracy": round(acc, 3), "n_receipt": len(rcpt),
+               "n_statement": len(stmt), "n_payment_order": len(po)}
     (out / "metrics.json").write_text(json.dumps(metrics, indent=2))
     registry.register("doctype", args.version, str(out / "model.joblib"), metrics,
                       dt.datetime.now().isoformat(timespec="seconds"),

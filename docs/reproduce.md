@@ -22,20 +22,31 @@ GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://github.com/zzzDavid/ICDAR-2019
 python scripts/prepare_sroie.py --n-test 80           # -> $WS/data/sroie/{train,test}
 # 1b. Synthetic receipts (EN + tiếng Việt, 5 field, multilingual)
 python -c "import os;from docai.synth import generate;generate(os.environ['DOCAI_WORKSPACE']+'/data/receipts',120,42)"
-# 1c. Synthetic bank statements (multi-document) — train seed 7, test seed 99
-python -c "import os;from docai.synth import generate_statements as g;g(os.environ['DOCAI_WORKSPACE']+'/data/statements',100,7);g(os.environ['DOCAI_WORKSPACE']+'/data/statements_test',30,99)"
+# 1c. Multi-document synthetic: statements (easy train + HARD train/test) + payment orders
+python - <<'PYG'
+import os
+from docai.synth import generate_statements as gs, generate_payment_orders as gp
+WS=os.environ['DOCAI_WORKSPACE']
+gs(f"{WS}/data/statements",100,7); gs(f"{WS}/data/statements_hard",60,13,hard=True)
+gs(f"{WS}/data/statements_test_hard",40,99,hard=True)
+gp(f"{WS}/data/payment_orders",80,11); gp(f"{WS}/data/payment_orders_test",30,23)
+PYG
 ```
+The HARD statement generator randomizes column schema/order (incl. Debit/Credit), negative
+format (`-x`, `(x)`, `CR/DR`), VN/EN headers, footer distractors, x-jitter — to avoid easy-data.
 
-### Multi-document: train the doc-type router + eval
+### Multi-document: train the 3-way doc-type router + eval
 ```bash
-# doc-type router (receipt vs bank_statement) trained on real SROIE + synthetic
-python training/train_doctype.py --receipts $DOCAI_WORKSPACE/data/sroie/train $DOCAI_WORKSPACE/data/receipts \
-       --statements $DOCAI_WORKSPACE/data/statements --version v2
-# eval: routing accuracy + statement header + transaction TABLE (row-F1, amount-acc)
-python scripts/eval_multidoc.py --limit 30          # -> docs/logs/multidoc_*.md
+python training/train_doctype.py \
+  --receipts $DOCAI_WORKSPACE/data/sroie/train $DOCAI_WORKSPACE/data/receipts \
+  --statements $DOCAI_WORKSPACE/data/statements $DOCAI_WORKSPACE/data/statements_hard \
+  --payment-orders $DOCAI_WORKSPACE/data/payment_orders --version v3
+python scripts/eval_multidoc.py --limit 30          # HARD statements -> docs/logs/multidoc_*.md
 ```
-The pipeline auto-routes: receipt → sklearn KIE; bank_statement → header KIE + table parsing
-(`docai/statement.py`). Output JSON has `document_type` + `line_items` (transactions).
+Auto-routes: receipt → sklearn KIE; bank_statement → header KIE + **table parsing**
+(`docai/statement.py`); payment_order → anchor KV (`docai/kv.py`). Output JSON has
+`document_type` + `line_items`. On HARD data, statement amount/description accuracy drops to
+0.35/0.55 (rule-based table parsing limit — see README "Key finding").
 
 ## 2. Train KIE — qua MLOps DAG (khuyến nghị) hoặc trực tiếp
 ```bash

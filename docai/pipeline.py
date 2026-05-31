@@ -64,6 +64,10 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
         if dt.name == "bank_statement":
             extracted, line_items = extract_statement(tokens)
             kie_ver = "statement-rules+table"
+        elif dt.name == "payment_order":
+            from .kv import kv_extract
+            extracted = kv_extract(tokens, dt)
+            kie_ver = "kv-rules"
         else:
             kie = get_kie()
             extracted = kie.extract(tokens)

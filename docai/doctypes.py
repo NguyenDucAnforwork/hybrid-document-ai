@@ -53,7 +53,29 @@ BANK_STATEMENT = DocType(
                 "amount, balance}). Use null if not visible. Do not guess."),
 )
 
-REGISTRY: dict[str, DocType] = {RECEIPT.name: RECEIPT, BANK_STATEMENT.name: BANK_STATEMENT}
+PAYMENT_ORDER = DocType(
+    name="payment_order",                  # ủy nhiệm chi / money transfer order
+    fields=["bank_name", "sender_name", "sender_account", "beneficiary_name",
+            "beneficiary_account", "amount", "content", "date"],
+    required=["beneficiary_account", "amount"],
+    anchors={
+        "bank_name": [],
+        "sender_name": ["remitter", "sender", "nguoi chuyen", "người chuyển", "ben chuyen", "bên chuyển"],
+        "sender_account": ["from account", "debit account", "tk chuyen", "tk nguoi chuyen", "so tk chuyen"],
+        "beneficiary_name": ["beneficiary", "payee", "nguoi huong", "người hưởng", "ben huong", "đơn vị hưởng"],
+        "beneficiary_account": ["beneficiary account", "credit account", "tk huong", "tk nguoi huong", "so tk huong", "to account"],
+        "amount": ["amount", "so tien", "số tiền"],
+        "content": ["content", "remark", "noi dung", "nội dung", "description"],
+        "date": ["date", "ngay", "ngày"],
+    },
+    kind="keyvalue",
+    vlm_prompt=("This is a bank payment order (ủy nhiệm chi). Return ONLY JSON: "
+                "bank_name, sender_name, sender_account, beneficiary_name, "
+                "beneficiary_account, amount, content, date. null if not visible."),
+)
+
+REGISTRY: dict[str, DocType] = {RECEIPT.name: RECEIPT, BANK_STATEMENT.name: BANK_STATEMENT,
+                                PAYMENT_ORDER.name: PAYMENT_ORDER}
 DOC_TYPES = list(REGISTRY.keys())
 
 

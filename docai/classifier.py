@@ -14,6 +14,8 @@ _STMT_KW = ["statement", "sao ke", "sao kê", "balance", "so du", "số dư",
             "account no", "so tai khoan", "số tài khoản", "opening", "closing"]
 _RCPT_KW = ["total", "tong cong", "tổng cộng", "invoice", "hoa don", "hóa đơn",
             "thanh tien", "thành tiền", "receipt"]
+_PO_KW = ["payment order", "uy nhiem chi", "ủy nhiệm chi", "beneficiary", "nguoi huong",
+          "người hưởng", "remitter", "ben chuyen", "to account", "tk huong"]
 _MONEY = re.compile(r"\d{1,3}(?:,\d{3})+|\d+\.\d{2}")
 
 
@@ -22,11 +24,12 @@ def global_features(tokens, W, H):
     n = max(len(tokens), 1)
     stmt = sum(txt.count(k) for k in _STMT_KW)
     rcpt = sum(txt.count(k) for k in _RCPT_KW)
+    po = sum(txt.count(k) for k in _PO_KW)
     money = sum(1 for t in tokens if _MONEY.search(t["text"]))
     # distinct text rows (statements are long, many rows)
     ys = sorted((t["bbox"][1] + t["bbox"][3]) / 2 for t in tokens)
     rows = 1 + sum(1 for a, b in zip(ys, ys[1:]) if b - a > 12)
-    return [stmt, rcpt, money / n, rows / 20.0, money, H / max(W, 1), n / 50.0]
+    return [stmt, rcpt, po, money / n, rows / 20.0, money, H / max(W, 1), n / 50.0]
 
 
 class DocTypeClassifier:
@@ -45,9 +48,10 @@ class DocTypeClassifier:
         joblib.dump({"clf": self.clf, "version": version}, path)
 
     def predict(self, tokens, W, H) -> tuple[str, float]:
-        if self.clf is None:                      # rule fallback
+        if self.clf is None:                      # rule fallback (stmt/rcpt/po keyword counts)
             f = global_features(tokens, W, H)
-            return ("bank_statement", 0.6) if f[0] > f[1] else ("receipt", 0.6)
+            lab = ["bank_statement", "receipt", "payment_order"][int(max(range(3), key=lambda i: f[i]))]
+            return lab, 0.6
         feats = [global_features(tokens, W, H)]
         proba = self.clf.predict_proba(feats)[0]
         i = int(proba.argmax())

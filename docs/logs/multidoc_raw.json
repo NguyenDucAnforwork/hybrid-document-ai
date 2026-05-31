@@ -1,18 +1,37 @@
 {
-  "doctype_routing_accuracy": 1.0,
-  "routing_receipt_correct": 1.0,
-  "statement": {
+  "doctype_routing_accuracy_3way": 1.0,
+  "routing": {
+    "receipt": 1.0,
+    "bank_statement": 1.0,
+    "payment_order": 1.0
+  },
+  "bank_statement_HARD": {
     "routing_to_statement": 1.0,
     "header_exact_match": {
-      "bank_name": 0.933,
+      "bank_name": 1.0,
       "account_number": 1.0,
       "account_holder": 1.0,
-      "statement_period": 1.0,
-      "opening_balance": 0.767,
+      "statement_period": 0.433,
+      "opening_balance": 0.967,
       "closing_balance": 0.9
     },
-    "table_row_f1": 1.0,
-    "table_amount_accuracy": 1.0,
+    "table_row_f1": 0.989,
+    "table_amount_accuracy": 0.352,
+    "table_description_anls@.5": 0.546,
+    "n": 30
+  },
+  "payment_order": {
+    "routing_correct": 1.0,
+    "field_exact_match": {
+      "bank_name": 0.867,
+      "sender_name": 1.0,
+      "sender_account": 0.967,
+      "beneficiary_name": 1.0,
+      "beneficiary_account": 1.0,
+      "amount": 0.867,
+      "content": 1.0,
+      "date": 1.0
+    },
     "n": 30
   }
 }
