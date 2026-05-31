@@ -74,6 +74,11 @@ Cost: mean latency 1.4s → 17.8s (CPU; production uses GPU/vLLM `vlm.mode=remot
 That cost is exactly why the VLM runs **only on router-flagged docs**, not the whole batch —
 the textbook hybrid trade-off. Enable with `DOCAI_VLM_MODE=local` (`docai/vlm.py`).
 
+**Demoing on a small GPU (e.g. RTX 1650 / 4GB)?** The 7B VLM won't fit locally, but the
+OpenAI-compatible `mode=api` lets the local box run OCR+KIE while hard cases hit a remote
+VLM — **Modal serverless (scale-to-zero)** via `deploy/modal_vlm.py`, a managed Qwen-VL API,
+or local **Ollama** (`qwen2.5vl:3b`, ~3GB). Full guide: **`docs/vlm-deployment.md`**.
+
 **Two honest findings worth more than a single number:**
 1. The router **catches blur/motion-blur** (OCR confidence collapses → `needs_review`=1.0, correctly refusing garbage) and reacts to `mixed_hard` (0.43). Dark/fade are tolerated (OCR robust).
 2. The router **does NOT catch rotate/perspective**: CER explodes (1.2–1.4) yet confidence stays ~0.87 and `needs_review`≈0.03 → **high-confidence wrong output** (ECE ≈ 0.51–0.55). Root cause: confidence reflects *line-selection* + *OCR self-reported* certainty, and OCR stays (wrongly) confident on geometrically warped text. Fix: a deskew/perspective-correction preprocessing stage + geometry-aware confidence. This is exactly the kind of failure a single clean accuracy hides.
