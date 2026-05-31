@@ -27,10 +27,14 @@ _gcu.get_type = _safe_get_type
 _gcu._json_schema_to_python_type = _safe_js
 
 from docai import pipeline
+from docai import classifier as _clf
 from docai.kie import KIEModel
 
+# Load trained models from the HF registry (Space has no /data workspace).
 _model_file = hf_hub_download("banhchungtuongot/hybrid-docai-kie", "kie/v4/model.joblib")
 pipeline._kie = KIEModel.load(_model_file)
+_dt_file = hf_hub_download("banhchungtuongot/hybrid-docai-kie", "doctype/v2/model.joblib")
+_clf._loaded = _clf.DocTypeClassifier.load(_dt_file)   # multi-document router
 
 
 def infer(image):
@@ -42,11 +46,14 @@ def infer(image):
     d = res.model_dump()
     rows = "\n".join(f"| {k} | {v['value']} | {v['confidence']} |"
                      for k, v in d["fields"].items())
+    tx = d.get("line_items") or []
+    tx_note = f"\n\n**Transactions parsed:** {len(tx)} rows" if tx else ""
     summary = (
-        f"### Route: `{d['route']}` · needs_human_review: **{d['needs_human_review']}**\n\n"
-        f"| field | value | confidence |\n|---|---|---|\n{rows}\n\n"
+        f"### Document type: `{d['document_type']}` · Route: `{d['route']}` · "
+        f"needs_human_review: **{d['needs_human_review']}**\n\n"
+        f"| field | value | confidence |\n|---|---|---|\n{rows}{tx_note}\n\n"
         f"**Quality:** blur={d['quality']['blur_score']} issues={d['quality']['issues']} "
-        f"· KIE `{d['model_versions'].get('kie')}`")
+        f"· models `{d['model_versions']}`")
     return json.dumps(d, ensure_ascii=False, indent=2), summary
 
 
