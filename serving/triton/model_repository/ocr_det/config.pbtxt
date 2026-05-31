@@ -1,0 +1,10 @@
+# Triton config for PP-OCR detection (ONNX) with dynamic batching.
+# Drop the RapidOCR det .onnx into ocr_det/1/model.onnx to serve via Triton.
+name: "ocr_det"
+platform: "onnxruntime_onnx"
+max_batch_size: 8
+dynamic_batching {
+  preferred_batch_size: [4, 8]
+  max_queue_delay_microseconds: 20000
+}
+instance_group [{ count: 1, kind: KIND_GPU }]

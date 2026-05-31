@@ -1,0 +1,20 @@
+# NLTK data dir contents (this repo lives inside nltk_data)
+tokenizers/
+corpora/
+taggers/
+*.zip
+# Secrets
+.env
+# Heavy artifacts live on /data, never committed
+/data/
+*.joblib
+*.onnx
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+# Local data/model caches
+data/images/
+**/labels.json
+docs/logs/benchmark_raw.json

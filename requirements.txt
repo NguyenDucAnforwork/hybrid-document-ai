@@ -1,0 +1,18 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic>=2
+prometheus-client
+rapidocr-onnxruntime
+opencv-python-headless
+pillow
+numpy
+scikit-learn
+joblib
+python-Levenshtein
+httpx
+pyyaml
+huggingface_hub
+pytest
+# VLM Tier-2 (optional, not installed in the in-budget build):
+#   torch transformers  # for local Donut OCR-free fallback

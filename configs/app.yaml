@@ -1,0 +1,24 @@
+# Swap-by-config: local (default) vs production. No code change needed.
+queue:
+  backend: memory          # memory | redis
+  url: redis://redis:6379
+storage:
+  backend: filesystem      # filesystem | minio
+  endpoint: minio:9000
+  bucket: documents
+serving:
+  ocr_via: in_process      # in_process | triton
+  triton_url: triton:8001
+  batcher: {max_batch: 8, max_delay_ms: 20}
+vlm:
+  mode: disabled           # disabled | api | remote_gpu
+  base_url: ""             # e.g. http://vllm:8000/v1
+  model: qwen2.5-vl
+  trigger: {min_confidence: 0.75, missing_required_fields: true}
+batch:
+  max_files: 50
+  per_image_timeout_sec: 60
+  max_retries: 2
+  allow_partial_failure: true
+eval:
+  f1_threshold: 0.6

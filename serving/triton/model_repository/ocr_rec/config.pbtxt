@@ -1,0 +1,9 @@
+# Triton config for PP-OCR recognition (ONNX) with dynamic batching.
+name: "ocr_rec"
+platform: "onnxruntime_onnx"
+max_batch_size: 16
+dynamic_batching {
+  preferred_batch_size: [8, 16]
+  max_queue_delay_microseconds: 20000
+}
+instance_group [{ count: 1, kind: KIND_GPU }]

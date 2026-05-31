@@ -1,0 +1,20 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test-and-eval-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install --no-cache-dir -r requirements.txt
+      - name: Unit tests
+        run: pytest -q
+      - name: Generate data + train KIE
+        env: {DOCAI_WORKSPACE: ${{ runner.temp }}/ws}
+        run: |
+          python -c "import sys;sys.path.insert(0,'.');from docai.synth import generate;generate('${{ runner.temp }}/ws/data/r',120,42)"
+          python training/train_kie.py --data ${{ runner.temp }}/ws/data/r --version ci
+      - name: Eval gate (fails build if macro-F1 < threshold)
+        env: {DOCAI_WORKSPACE: ${{ runner.temp }}/ws}
+        run: python scripts/run_benchmark.py --data ${{ runner.temp }}/ws/data/r --f1-threshold 0.6
