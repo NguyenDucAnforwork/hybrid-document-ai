@@ -6,30 +6,30 @@
       "f1": 0.0
     },
     "date": {
-      "anls": 0.842,
-      "f1": 0.75
+      "anls": 0.675,
+      "f1": 0.6364
     },
     "total_amount": {
-      "anls": 0.692,
-      "f1": 0.5
+      "anls": 0.575,
+      "f1": 0.4167
     },
     "_vlm_used": 0,
-    "_mean_latency_s": 1.3
+    "_mean_latency_s": 1.4
   },
   "setting_C_ocr_plus_vlm": {
     "merchant_name": {
-      "anls": 0.0,
-      "f1": 0.0
+      "anls": 0.167,
+      "f1": 0.1667
     },
     "date": {
-      "anls": 0.842,
-      "f1": 0.75
+      "anls": 0.925,
+      "f1": 0.8333
     },
     "total_amount": {
-      "anls": 0.692,
+      "anls": 0.661,
       "f1": 0.5
     },
-    "_vlm_used": 0,
-    "_mean_latency_s": 1.1
+    "_vlm_used": 3,
+    "_mean_latency_s": 17.8
   }
 }
