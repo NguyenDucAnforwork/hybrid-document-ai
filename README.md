@@ -21,19 +21,23 @@ data, pipeline, serving and operations. Here the model is **1 of 3 layers**:
 *trained, versioned, eval-gated*). Tier-2 = **VLM OCR-free** (Donut/Qwen-VL) for
 low-confidence "hard cases" via a confidence router — the hybrid architecture.
 
-## Results (measured, end-to-end real OCR on 40 receipts)
+## Results (measured, end-to-end real OCR on 40 receipts) — KIE **v2**
 | field | F1 | exact-match |
 |---|---|---|
+| merchant_name | 1.00 | 1.00 |
 | date | 1.00 | 1.00 |
 | total_amount | 1.00 | 1.00 |
-| invoice_id | 0.95 | 0.95 |
-| payment_method | 0.93 | 0.93 |
-| merchant_name | 0.45 | 0.45 |
-| **macro-F1** | **0.865** | — |
+| payment_method | 0.98 | 0.98 |
+| invoice_id | 0.92 | 0.90 |
+| **macro-F1** | **0.98** | all-required-correct **1.00** |
 
-Latency p50 **508 ms** / p95 **658 ms** (CPU). `merchant_name` is the hardest field
-(real OCR reads store names inconsistently) — exactly the "real-world data is
-messy" problem; low-confidence docs are routed to human review / VLM, not guessed.
+Latency p50 **334 ms** / p95 **515 ms** (CPU). **v1→v2 improvement (0.865→0.98)** via
+two fixes found by debugging the eval (see `docs/lessons-learned.md` / `debug-workflows.md`):
+(1) **layout-graph line-grouping** — OCR splits multi-word titles ("ABC"+"MART"); merging
+tokens per row fixed `merchant_name` 0.45→1.0; (2) **stricter money regex** (require
+thousands separators) so dates/IDs aren't mistaken for amounts. `invoice_id` 0.90 is the
+honest ceiling: real OCR misreads digits (HD**1**434→HD**l**434) — such low-confidence
+docs route to human review / VLM, not guessed.
 
 ## Quickstart
 ```bash

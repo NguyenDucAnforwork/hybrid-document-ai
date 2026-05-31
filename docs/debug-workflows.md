@@ -29,6 +29,18 @@ Khi 1 doc sai/lỗi, **cô lập theo stage**, đừng đoán. Mỗi stage emit 
 - **Chẩn đoán:** `df -h /home`, `du -sh .venv ~/.cache/pip`.
 - **Sửa:** `opencv-python-headless`; `pip install --no-cache-dir`; xoá `~/.cache/pip`; **KHÔNG cài torch/Donut** → VLM về `api`/`remote`; bỏ FUNSD.
 
+### ĐÃ GẶP: `merchant_name` F1 thấp (0.45) — OCR tách token tiêu đề
+- **Triệu chứng:** GOLD=`abc mart` PRED=`abc`. Per-field eval chỉ merchant tệ.
+- **Chẩn đoán:** in `[t['text'] for t in run_ocr(img)]` → thấy `['ABC ','MART',...]` (OCR tách 2 token), trong khi training dùng token cả-dòng.
+- **Sửa:** thêm `group_lines()` (gộp token cùng hàng y) vào `candidates()` → train/infer đồng nhất. **0.45→1.0**.
+- **Phòng ngừa:** luôn so token thật (infer) với token train; mismatch candidate = nghi ngờ đầu tiên.
+
+### ĐÃ GẶP: `total_amount` chọn nhầm số nhỏ — money regex bắt cả ngày/ID
+- **Triệu chứng:** PRED=12000 (item) thay vì 120000 (TONG CONG). Xảy ra sau khi thêm line-grouping.
+- **Chẩn đoán:** in candidate values cho field total → thấy dòng `Date: 01/12/2025` cho ra "money"=1122025 (regex `\d[\d.,]{2,}` nuốt cả ngày) → thành `max_money` giả → feature `is_max_number` dạy ngược.
+- **Sửa:** `MONEY_RE = \d{1,3}(?:[.,]\d{3})+` (bắt buộc dấu phân cách nghìn). `total_amount`→1.0.
+- **Phòng ngừa:** regex trích xuất phải **loại trừ lẫn nhau** giữa các field (date/ID/money); test trên token thật, không chỉ chuỗi đẹp.
+
 ### RapidOCR/onnxruntime không cài trên Py3.13
 - **Chẩn đoán:** `pip install rapidocr-onnxruntime -v`.
 - **Sửa:** pin onnxruntime có cp313 wheel → fallback `easyocr` sau interface `OCREngine` → cuối cùng venv Python 3.11.

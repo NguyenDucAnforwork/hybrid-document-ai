@@ -23,14 +23,18 @@ ANCHORS = {
     "payment_method": ["cash", "card", "qr", "visa", "momo", "tien mat",
                        "tiền mặt", "the", "thẻ", "payment", "chuyen khoan"],
 }
-MONEY_RE = re.compile(r"\d[\d.,]{2,}")
+# Money requires thousands separators (VND style) so dates/IDs are NOT matched.
+MONEY_RE = re.compile(r"\d{1,3}(?:[.,]\d{3})+")
 DATE_RE = re.compile(r"\d{1,2}\s*[/\-.]\s*\d{1,2}\s*[/\-.]\s*\d{2,4}")
-ID_RE = re.compile(r"[A-Z]{0,4}\d{3,}")
+ID_RE = re.compile(r"[A-Z]{1,4}\d{3,}")
 
 
 # ---- shared normalization (MUST match between train / infer / eval) -------
 def norm_money(s: str):
-    digits = re.sub(r"[^\d]", "", s or "")
+    m = MONEY_RE.search(s or "")
+    if not m:
+        return None
+    digits = re.sub(r"[^\d]", "", m.group())
     return int(digits) if digits else None
 
 
@@ -91,7 +95,41 @@ def _kw_proximity(token, field, tokens):
     return max(0.0, 1.0 - best / 1000.0)
 
 
-def token_features(token, field_idx, tokens, W, H, max_money):
+def group_lines(tokens):
+    """Layout-graph: merge tokens sharing a text row into one line candidate.
+
+    Fixes the train/serve gap where OCR splits a multi-word title ("ABC MART")
+    into separate tokens. Training uses line-level tokens, so grouping makes
+    inference candidates consistent with training.
+    """
+    if not tokens:
+        return []
+    toks = sorted(tokens, key=lambda t: (t["bbox"][1] + t["bbox"][3]) / 2)
+    lines, cur = [], [toks[0]]
+    for t in toks[1:]:
+        cy = (t["bbox"][1] + t["bbox"][3]) / 2
+        ref = cur[-1]
+        ref_cy = (ref["bbox"][1] + ref["bbox"][3]) / 2
+        ref_h = ref["bbox"][3] - ref["bbox"][1]
+        if abs(cy - ref_cy) <= 0.6 * max(ref_h, 1):
+            cur.append(t)
+        else:
+            lines.append(cur)
+            cur = [t]
+    lines.append(cur)
+    merged = []
+    for grp in lines:
+        grp = sorted(grp, key=lambda t: t["bbox"][0])
+        merged.append({
+            "text": " ".join(g["text"].strip() for g in grp),
+            "bbox": [min(g["bbox"][0] for g in grp), min(g["bbox"][1] for g in grp),
+                     max(g["bbox"][2] for g in grp), max(g["bbox"][3] for g in grp)],
+            "conf": min(g["conf"] for g in grp),
+        })
+    return merged
+
+
+def token_features(token, field_idx, tokens, W, H, max_money, max_height):
     txt = token["text"]
     cx = (token["bbox"][0] + token["bbox"][2]) / 2
     cy = (token["bbox"][1] + token["bbox"][3]) / 2
@@ -109,6 +147,7 @@ def token_features(token, field_idx, tokens, W, H, max_money):
         min(len(txt), 40) / 40.0,
         1.0 if (money_val is not None and max_money and money_val >= max_money) else 0.0,
         _kw_proximity(token, ALL_FIELDS[field_idx], tokens),
+        1.0 if (max_height and height >= max_height - 1e-6) else 0.0,  # is_largest_font -> title/merchant
     ]
     onehot = [0.0] * len(ALL_FIELDS)
     onehot[field_idx] = 1.0
@@ -116,12 +155,14 @@ def token_features(token, field_idx, tokens, W, H, max_money):
 
 
 def candidates(tokens):
-    """Layout-graph candidate generation: every OCR token is a candidate."""
+    """Layout-graph candidate generation: group into lines, then each line is a candidate."""
+    tokens = group_lines(tokens)
     money_vals = [norm_money(t["text"]) for t in tokens if MONEY_RE.search(t["text"])]
     max_money = max([m for m in money_vals if m], default=0)
     W = max((t["bbox"][2] for t in tokens), default=1)
     H = max((t["bbox"][3] for t in tokens), default=1)
-    return tokens, W, H, max_money
+    max_height = max((t["bbox"][3] - t["bbox"][1] for t in tokens), default=1)
+    return tokens, W, H, max_money, max_height
 
 
 # ---- model wrapper --------------------------------------------------------
@@ -146,7 +187,7 @@ class KIEModel:
 
     def extract(self, tokens) -> dict:
         """Return {field: (value, confidence, route_hint)}."""
-        toks, W, H, max_money = candidates(tokens)
+        toks, W, H, max_money, max_height = candidates(tokens)
         out = {}
         for fi, field in enumerate(ALL_FIELDS):
             best, best_p = None, -1.0
@@ -154,7 +195,7 @@ class KIEModel:
                 nv = norm_field(field, t["text"])
                 if nv is None:
                     continue
-                feats = token_features(t, fi, toks, W, H, max_money)
+                feats = token_features(t, fi, toks, W, H, max_money, max_height)
                 p = self._score(feats)
                 # rule-only baseline fallback when no classifier
                 if p is None:

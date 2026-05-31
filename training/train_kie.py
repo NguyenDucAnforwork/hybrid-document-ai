@@ -24,14 +24,14 @@ from docai import registry  # noqa
 def build_xy(records):
     X, y = [], []
     for r in records:
-        toks, W, H, mm = candidates(r["tokens"])
+        toks, W, H, mm, mh = candidates(r["tokens"])
         for fi, field in enumerate(ALL_FIELDS):
             gold = r["gold"].get(field)
             for t in toks:
                 nv = norm_field(field, t["text"])
                 if nv is None:
                     continue
-                X.append(token_features(t, fi, toks, W, H, mm))
+                X.append(token_features(t, fi, toks, W, H, mm, mh))
                 y.append(1 if (gold is not None and nv == gold) else 0)
     return np.array(X, float), np.array(y, int)
 

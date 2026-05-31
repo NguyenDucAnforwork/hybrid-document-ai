@@ -28,7 +28,7 @@ def _font(size):
 def gen_one(rng: random.Random):
     merchant = rng.choice(MERCHANTS)
     day, mon, yr = rng.randint(1, 28), rng.randint(1, 12), rng.randint(2024, 2026)
-    total = rng.choice([15000, 35000, 89000, 120000, 235000, 450000, 1250000])
+    total = rng.choice([89000, 120000, 235000, 450000, 890000, 1250000])
     inv = f"HD{rng.randint(1000, 9999)}"
     pay_norm, pay_text = rng.choice(PAYMENTS)
     gold = {
@@ -42,8 +42,8 @@ def gen_one(rng: random.Random):
         (merchant, 44),
         (f"Invoice No: {inv}", 26),
         (f"Date: {day:02d}/{mon:02d}/{yr}", 26),
-        ("Item A .......... 35,000", 26),
-        ("Item B .......... 50,000", 26),
+        ("Item A .......... 12,000", 26),
+        ("Item B .......... 23,000", 26),
         (f"TONG CONG: {total:,}", 34),
         (f"Payment: {pay_text}", 26),
     ]

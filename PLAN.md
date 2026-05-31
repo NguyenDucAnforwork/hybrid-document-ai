@@ -265,9 +265,9 @@ curl localhost:8000/metrics ; pytest -q
 |---|---|---|
 | P0 Setup | ✅ | venv 743MB trên /data (no torch); /home đầy nên artifacts off-box |
 | P1 OCR + Batcher | ✅ | RapidOCR ONNX; dynamic batcher test pass (max_seen>=2) |
-| P2 KIE multi-model | ✅ | sklearn classifier macro 0.975 (gt tokens); registered kie:v1 |
+| P2 KIE multi-model | ✅ | sklearn classifier + layout line-grouping; kie v1→**v2** (macro_test 0.992) |
 | P3 Router + Batch | ✅ | confidence router + batch state machine + retry/dead-letter |
-| P4 MLOps | ✅ | eval-gate PASS macro-F1 0.865; registry/versioning; /metrics+drift |
+| P4 MLOps | ✅ | eval-gate PASS **macro-F1 0.98** (v1 0.865→v2 0.98); registry/versioning; /metrics+drift |
 | P5 Deploy + docs | ✅ | Dockerfile/compose/hpa/triton/ci; HF+GitHub pushed; test.ipynb |
 
 **Artifacts:** GitHub https://github.com/NguyenDucAnforwork/hybrid-document-ai · HF model `banhchungtuongot/hybrid-docai-kie` · HF dataset `banhchungtuongot/hybrid-docai-receipts`

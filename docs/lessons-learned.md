@@ -42,7 +42,11 @@ Ghi **quyết định + lý do + đánh đổi**. Phần này nhà tuyển dụn
 ## Bài học khi thực thi (ĐÃ CHẠY THẬT)
 - **[P0] Disk:** `/home` đầy 100% (free tụt 5.3→1.9GB trong phiên) → chuyển venv/data/models sang `/data` (631GB), code ở nltk_data. Tách *code* (nhỏ, versioned) khỏi *artifacts* (lớn, không commit) cứu được khi mount chính hết chỗ. Bỏ `torch` → venv chỉ 743MB.
 - **[P1] OCR:** RapidOCR ship sẵn ONNX (không tải mạng); batcher test chứng minh `max_seen>=2` (gom batch thật).
-- **[P2] KIE:** macro exact-match **0.975 trên ground-truth tokens** nhưng **0.865 end-to-end với OCR thật** → train/serve gap có thật. **`merchant_name` tệ nhất (F1 0.45)**: mọi token là candidate merchant (norm_text không None) + OCR đọc tên cửa hàng biến thiên. Đúng "dữ liệu thực không sạch". Sửa: ràng buộc candidate merchant theo vùng top / thêm feature font-size.
+- **[P2] KIE (v1→v2, debug bằng chính eval):** v1 end-to-end **0.865**, `merchant_name` F1 **0.45**. Debug ra **2 nguyên nhân thật** (không phải classifier yếu):
+  1. **OCR tách tiêu đề nhiều chữ** ("ABC"+"MART") còn training dùng token cả-dòng → **train/serve mismatch**. Fix: thêm **layout-graph line-grouping** gộp token cùng hàng → áp đồng nhất train+infer. `merchant_name` **0.45→1.0**.
+  2. **Money regex quá lỏng** (`\d[\d.,]{2,}`) bắt cả ngày ("01/12/2025"→1122025) và invoice ("HD4657"→4657) thành tiền giả → số giả khổng lồ thành `max_money` → classifier học "total KHÔNG phải số lớn nhất" → chọn nhầm item nhỏ nhất. Fix: money phải có **dấu phân cách nghìn** `\d{1,3}(?:[.,]\d{3})+`. `total_amount` về **1.0**.
+  - Thêm feature `is_largest_font` (merchant = dòng font to nhất). **v2: macro-F1 0.98, all-required-correct 1.0**. `invoice_id` 0.90 là trần thật (OCR đọc nhầm `1↔l`) → low-conf → human review.
+  - **Bài học lớn nhất:** *gần như mọi điểm yếu "model" hoá ra là bug ở candidate-generation / chuẩn hoá, lộ ra nhờ eval per-field + nhìn token thật.* Đây là giá trị của benchmark có gold, không phải "accuracy đẹp".
 - **[P3] Router + batch:** ngưỡng 0.75 hợp lý (doc clean ~0.95 không kích VLM); batch state machine + summary chuẩn.
 - **[P4] MLOps:** eval-gate thr=0.6, macro-F1 0.865 → PASS. Drift hữu ích nhất: phân phối `field_confidence` + `input_blur_score`. `np.float64` không serialize YAML → phải sanitize trong registry.
 - **[P5] Wrap:** cắt Donut local (cần torch, đụng disk) → VLM `api` mode. Thêm giờ: ràng buộc candidate merchant + LayoutLMv3 ONNX + chạy Triton/vLLM thật trên H100.
