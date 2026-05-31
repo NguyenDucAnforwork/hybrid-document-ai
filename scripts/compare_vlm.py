@@ -66,6 +66,8 @@ def main():
     ap.add_argument("--limit", type=int, default=10)
     ap.add_argument("--degrade", default=None, help="apply a degradation (e.g. blur) to create hard cases")
     ap.add_argument("--severity", type=float, default=0.45)
+    ap.add_argument("--vlm-mode", default="local", choices=["local", "api"],
+                    help="Setting C backend: local GPU/CPU, or api (Modal/managed via VLM_API_BASE)")
     ap.add_argument("--out", default="docs/logs")
     args = ap.parse_args()
     data = Path(args.data)
@@ -75,9 +77,10 @@ def main():
     os.environ["DOCAI_VLM_MODE"] = "disabled"
     print(f"Setting B (OCR-only), degrade={args.degrade} ...", flush=True)
     B = evaluate(records, img_dir, args.degrade, args.severity)
-    os.environ["DOCAI_VLM_MODE"] = "local"
-    os.environ.setdefault("DOCAI_VLM_DEVICE", "cpu")
-    print("Setting C (OCR + VLM hard-case) ...", flush=True)
+    os.environ["DOCAI_VLM_MODE"] = args.vlm_mode      # local | api (Modal/managed)
+    if args.vlm_mode == "local":
+        os.environ.setdefault("DOCAI_VLM_DEVICE", "cpu")
+    print(f"Setting C (OCR + VLM hard-case, mode={args.vlm_mode}) ...", flush=True)
     C = evaluate(records, img_dir, args.degrade, args.severity)
 
     res = {"n": len(records), "setting_B_ocr_only": B, "setting_C_ocr_plus_vlm": C}
