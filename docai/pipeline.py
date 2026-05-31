@@ -61,9 +61,13 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
         if vlm_fields:
             route = "vlm_fallback"
             metrics.fallback_total.inc()
+            from .kie import norm_field
             for f in ALL_FIELDS:
-                if vlm_fields.get(f) is not None:
-                    extracted[f] = (vlm_fields[f], 0.80)
+                raw = vlm_fields.get(f)
+                if raw is not None:
+                    nv = norm_field(f, str(raw))   # normalize VLM output to schema
+                    if nv is not None:
+                        extracted[f] = (nv, 0.80)
             needs_review, _, reasons = route_decision(extracted)
 
     fields = {}

@@ -1,7 +1,8 @@
-"""Hybrid Document AI — live demo (HuggingFace Space, Gradio).
+"""Hybrid Document AI — live demo (HuggingFace Space, Gradio 5).
 
 Runs the REAL pipeline: quality -> RapidOCR (PP-OCR) -> KIE (calibrated sklearn
-classifier, downloaded from the HF model registry) -> confidence router.
+classifier from the HF model registry) -> confidence router. (VLM hard-case path
+runs on GPU; on this free CPU Space the traditional path is served.)
 """
 import os
 import json
@@ -12,49 +13,64 @@ import numpy as np
 import gradio as gr
 from huggingface_hub import hf_hub_download
 
+# Fix gradio_client schema bug ("argument of type 'bool' is not iterable") that
+# 500s /gradio_api/info -> "No API found". Boolean JSON-schema nodes are valid
+# (additionalProperties: true/false) but the parser doesn't guard for them.
+import gradio_client.utils as _gcu
+_orig_get_type = _gcu.get_type
+_orig_js = _gcu._json_schema_to_python_type
+def _safe_get_type(schema):
+    return "Any" if isinstance(schema, bool) else _orig_get_type(schema)
+def _safe_js(schema, defs=None):
+    return "Any" if isinstance(schema, bool) else _orig_js(schema, defs)
+_gcu.get_type = _safe_get_type
+_gcu._json_schema_to_python_type = _safe_js
+
 from docai import pipeline
 from docai.kie import KIEModel
 
-# Load the trained KIE model (v4, calibrated) from the HF model registry.
 _model_file = hf_hub_download("banhchungtuongot/hybrid-docai-kie", "kie/v4/model.joblib")
 pipeline._kie = KIEModel.load(_model_file)
 
 
 def infer(image):
     if image is None:
-        return {"error": "upload a receipt image"}, "no image"
+        return "{}", "Upload a receipt image first."
     bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    ok, enc = cv2.imencode(".jpg", bgr)
+    _, enc = cv2.imencode(".jpg", bgr)
     res = pipeline.process_document("upload", enc.tobytes())
     d = res.model_dump()
-    rows = "\n".join(
-        f"| {k} | {v['value']} | {v['confidence']} |" for k, v in d["fields"].items())
+    rows = "\n".join(f"| {k} | {v['value']} | {v['confidence']} |"
+                     for k, v in d["fields"].items())
     summary = (
-        f"### Route: `{d['route']}`  ·  needs_human_review: **{d['needs_human_review']}**\n\n"
+        f"### Route: `{d['route']}` · needs_human_review: **{d['needs_human_review']}**\n\n"
         f"| field | value | confidence |\n|---|---|---|\n{rows}\n\n"
-        f"**Quality:** blur={d['quality']['blur_score']} "
-        f"issues={d['quality']['issues']}  ·  KIE `{d['model_versions'].get('kie')}`")
+        f"**Quality:** blur={d['quality']['blur_score']} issues={d['quality']['issues']} "
+        f"· KIE `{d['model_versions'].get('kie')}`")
     return json.dumps(d, ensure_ascii=False, indent=2), summary
 
 
 DESC = (
     "# 🧾 Hybrid Document AI — Receipt OCR + KIE\n"
-    "Production-grade pipeline (VNPAY AI Engineer portfolio). Upload a receipt: "
-    "**RapidOCR (PP-OCR)** reads text, a **calibrated scikit-learn KIE classifier** "
-    "extracts fields, and a **confidence router** flags low-confidence docs for human "
-    "review (it won't silently emit wrong data). Trained on real **SROIE** receipts + "
-    "synthetic VN data.\n\n"
+    "Production-grade pipeline (VNPAY AI Engineer portfolio). **RapidOCR (PP-OCR)** reads "
+    "text → a **calibrated scikit-learn KIE classifier** extracts fields → a **confidence "
+    "router** flags low-confidence docs for human review (won't silently emit wrong data). "
+    "Trained on real **SROIE** receipts + synthetic VN data.\n\n"
+    "date & total_amount work well; merchant_name is a known-hard field. "
     "Code: github.com/NguyenDucAnforwork/hybrid-document-ai")
 
-examples = [[f"examples/{f}"] for f in sorted(os.listdir("examples"))] \
-    if os.path.isdir("examples") else None
-
-demo = gr.Interface(
-    fn=infer, inputs=gr.Image(type="numpy", label="Receipt"),
-    outputs=[gr.Code(label="Structured result (JSON)", language="json"),
-             gr.Markdown(label="Summary")],
-    title="Hybrid Document AI — OCR + KIE", description=DESC, examples=examples,
-    flagging_mode="never")
+with gr.Blocks(title="Hybrid Document AI — OCR + KIE") as demo:
+    gr.Markdown(DESC)
+    with gr.Row():
+        inp = gr.Image(type="numpy", label="Receipt")
+        with gr.Column():
+            out_md = gr.Markdown(label="Summary")
+            out_json = gr.Code(label="Structured result (JSON)", language="json")
+    btn = gr.Button("Extract", variant="primary")
+    btn.click(infer, inputs=inp, outputs=[out_json, out_md], api_name="predict")
+    ex_dir = "examples"
+    if os.path.isdir(ex_dir):
+        gr.Examples([[f"{ex_dir}/{f}"] for f in sorted(os.listdir(ex_dir))], inputs=inp)
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=7860)
