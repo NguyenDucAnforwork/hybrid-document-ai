@@ -74,10 +74,14 @@ Cost: mean latency 1.4s → 17.8s (CPU; production uses GPU/vLLM `vlm.mode=remot
 That cost is exactly why the VLM runs **only on router-flagged docs**, not the whole batch —
 the textbook hybrid trade-off. Enable with `DOCAI_VLM_MODE=local` (`docai/vlm.py`).
 
-**Demoing on a small GPU (e.g. RTX 1650 / 4GB)?** The 7B VLM won't fit locally, but the
+**Demoing on a small GPU (e.g. RTX 1650 / 4GB)?** The VLM won't fit locally, but the
 OpenAI-compatible `mode=api` lets the local box run OCR+KIE while hard cases hit a remote
-VLM — **Modal serverless (scale-to-zero)** via `deploy/modal_vlm.py`, a managed Qwen-VL API,
-or local **Ollama** (`qwen2.5vl:3b`, ~3GB). Full guide: **`docs/vlm-deployment.md`**.
+VLM. **This is live now:** the public HF Space (CPU, OCR+KIE) escalates hard cases to a
+**Modal serverless GPU** running Qwen2.5-VL (`deploy/modal_vlm.py`, scale-to-zero) — verified
+end-to-end (a blurred receipt → `route=vlm_fallback` → VLM recovers the merchant the OCR path
+misses). Same wiring works on an RTX 1650. Alternatives (managed Qwen API, local Ollama
+`qwen2.5vl:3b`): **`docs/vlm-deployment.md`**. Note: first hard case after idle waits ~60-70s
+(Modal cold start + model load).
 
 **Two honest findings worth more than a single number:**
 1. The router **catches blur/motion-blur** (OCR confidence collapses → `needs_review`=1.0, correctly refusing garbage) and reacts to `mixed_hard` (0.43). Dark/fade are tolerated (OCR robust).

@@ -17,19 +17,22 @@ KHÔNG sửa code. Vì VLM chỉ chạy trên ca router-flag (vài %), latency/c
 
 Tất cả A/B/C đều cắm vào `mode=api` (cùng `VLM_API_BASE`), trừ D.
 
-## A. Modal (khuyến nghị) — `deploy/modal_vlm.py`
+## A. Modal (khuyến nghị) — `deploy/modal_vlm.py` ✅ ĐÃ DEPLOY & VERIFY
+Endpoint đang chạy: `https://nguyenducanforwork--docai-vlm-vlm-serve.modal.run` (Qwen2.5-VL-3B trên L4,
+serve `/v1/chat/completions` qua transformers + FastAPI, scale-to-zero). HF Space đang trỏ vào đây.
 ```bash
-pip install modal && modal token new           # đăng nhập 1 lần
-modal deploy deploy/modal_vlm.py                # -> URL https://<you>--docai-vlm-serve.modal.run
+pip install modal && modal token set --token-id <ak-...> --token-secret <as-...>   # 1 lần
+modal deploy deploy/modal_vlm.py                # -> URL https://<you>--docai-vlm-vlm-serve.modal.run
 export DOCAI_VLM_MODE=api
-export VLM_API_BASE="https://<you>--docai-vlm-serve.modal.run/v1"
+export VLM_API_BASE="https://<you>--docai-vlm-vlm-serve.modal.run/v1"
 export VLM_API_KEY=dummy
-export VLM_MODEL="Qwen/Qwen2.5-VL-7B-Instruct"
+export VLM_MODEL="Qwen/Qwen2.5-VL-3B-Instruct"
 uvicorn app.main:app --port 8000                # local OCR+KIE; hard case -> Modal
 ```
 - **scale-to-zero:** chỉ tốn tiền giây GPU thực sự infer (ca khó). Idle 5 phút → tắt.
-- **cold-start ~30–60s** cho ca đầu sau idle → đặt `min_containers=1` nếu cần luôn ấm (tốn hơn).
-- GPU A10G/L4 (24GB) đủ cho 7B; dùng 3B nếu muốn rẻ hơn.
+- **cold-start ~60–70s** cho ca đầu sau idle (spin container + load model từ Volume cache); `min_containers=1` nếu cần luôn ấm.
+- Model cache trong `modal.Volume` (không tải lại 7GB mỗi cold start). GPU L4 cho 3B; A10G cho 7B.
+- Đã verify end-to-end: ảnh blur → HF Space (CPU OCR+KIE) → `route=vlm_fallback` → Modal trả merchant đúng.
 
 ## B. Managed API (nhanh nhất, không cần GPU)
 Trỏ `VLM_API_BASE` tới endpoint OpenAI-compatible của nhà cung cấp:
