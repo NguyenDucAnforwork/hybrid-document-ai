@@ -35,5 +35,13 @@ Chạy: `python -m mlops.pipeline --run-id demo --version v_pipe` → DAG có ga
 - **Disaster recovery:** xem `docs/runbook-dr.md`.
 - **GPU sharing / cost:** scale-to-zero cho tier VLM nhàn rỗi; time-slicing/MIG cho nhiều model nhỏ trên 1 GPU (rủi ro memory/capacity — ghi trong runbook).
 
+## Multi-document (mở rộng theo chiều LOẠI chứng từ)
+Pipeline không chỉ hóa đơn. `docai/doctypes.py` là registry per-type (fields/required/anchors/
+table/vlm_prompt); `docai/classifier.py` là **doc-type router** học được (registered model
+`doctype`, stage+lineage trong cùng registry). Hiện có **receipt** (KIE sklearn) + **bank_statement**
+(header KIE + **table parsing** `docai/statement.py`). Đo: routing acc 1.0, table row-F1 1.0
+(`docs/logs/multidoc_*.md`). Thêm loại mới (eKYC/ID, payment slip, FUNSD form) = 1 entry registry
++ optional extractor; serving/MLOps/VLM dùng lại. **Anti-fraud** dùng chung quality+confidence+drift.
+
 ## Còn thiếu so với production đầy đủ (trung thực)
 Chưa chạy thật: KServe/Triton/vLLM trên k8s, KFP cluster, OTel collector, Grafana, GPU MIG. Đều có artifact + swap-by-config; lý do: budget 15GB disk/4GB VRAM/không k8s trên máy dev. Demo serving thật chạy trên HF Space.

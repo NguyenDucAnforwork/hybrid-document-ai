@@ -1,0 +1,18 @@
+{
+  "doctype_routing_accuracy": 1.0,
+  "routing_receipt_correct": 1.0,
+  "statement": {
+    "routing_to_statement": 1.0,
+    "header_exact_match": {
+      "bank_name": 0.933,
+      "account_number": 1.0,
+      "account_holder": 1.0,
+      "statement_period": 1.0,
+      "opening_balance": 0.767,
+      "closing_balance": 0.9
+    },
+    "table_row_f1": 1.0,
+    "table_amount_accuracy": 1.0,
+    "n": 30
+  }
+}

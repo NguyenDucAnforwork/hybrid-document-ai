@@ -7,14 +7,13 @@ from __future__ import annotations
 from .config import REQUIRED_FIELDS, MIN_FIELD_CONFIDENCE
 
 
-def route_decision(fields: dict) -> tuple[bool, bool, list[str]]:
-    """Return (needs_review, should_vlm, reasons)."""
-    # Review is driven by the REQUIRED fields only (date+amount for a payment
-    # doc). Optional fields (merchant/invoice/payment) being low-confidence must
-    # not saturate the router — else every real-world doc gets flagged and the
-    # router loses all discriminating power.
+def route_decision(fields: dict, required: list[str] | None = None) -> tuple[bool, bool, list[str]]:
+    """Return (needs_review, should_vlm, reasons). `required` is per doc-type."""
+    # Review is driven by the REQUIRED fields only. Optional fields being
+    # low-confidence must not saturate the router — else every real-world doc
+    # gets flagged and the router loses all discriminating power.
     reasons = []
-    for rf in REQUIRED_FIELDS:
+    for rf in (required if required is not None else REQUIRED_FIELDS):
         val, conf = fields.get(rf, (None, 0.0))
         if val is None:
             reasons.append(f"missing:{rf}")

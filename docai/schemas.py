@@ -25,6 +25,7 @@ class DocumentResult(BaseModel):
     document_type: str = "receipt"
     route: str = "traditional_ocr"          # traditional_ocr | vlm_fallback
     fields: dict[str, FieldValue] = Field(default_factory=dict)
+    line_items: list[dict] = Field(default_factory=list)  # transaction rows (bank_statement)
     quality: QualityReport
     needs_human_review: bool = False
     model_versions: dict[str, str] = Field(default_factory=dict)  # audit/traceability

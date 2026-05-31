@@ -13,6 +13,9 @@ from .vlm import vlm_extract
 from .schemas import DocumentResult, FieldValue
 from .registry import active_path
 from .config import ALL_FIELDS
+from . import doctypes
+from .classifier import get_classifier
+from .statement import extract_statement
 
 _kie: KIEModel | None = None
 
@@ -49,29 +52,44 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
     with metrics.stage_latency.labels("ocr").time():
         tokens = run_ocr(img)
 
-    kie = get_kie()
-    with metrics.stage_latency.labels("kie").time():
-        extracted = kie.extract(tokens)
+    # Document-type router: receipt vs bank_statement (multi-document).
+    H, W = img.shape[:2]
+    clf = get_classifier()
+    doc_type, dt_conf = clf.predict(tokens, W, H)
+    dt = doctypes.get(doc_type)
+    line_items = []
+    kie_ver = "n/a"
 
-    needs_review, should_vlm, reasons = route_decision(extracted)
+    with metrics.stage_latency.labels("kie").time():
+        if dt.name == "bank_statement":
+            extracted, line_items = extract_statement(tokens)
+            kie_ver = "statement-rules+table"
+        else:
+            kie = get_kie()
+            extracted = kie.extract(tokens)
+            kie_ver = kie.version
+
+    needs_review, should_vlm, reasons = route_decision(extracted, dt.required)
     route = "traditional_ocr"
 
     if should_vlm:
-        vlm_fields = vlm_extract(image_bytes)
+        vlm_fields = vlm_extract(image_bytes, prompt=dt.vlm_prompt)
         if vlm_fields:
             route = "vlm_fallback"
             metrics.fallback_total.inc()
             from .kie import norm_field
-            for f in ALL_FIELDS:
+            for f in dt.fields:
                 raw = vlm_fields.get(f)
                 if raw is not None:
-                    nv = norm_field(f, str(raw))   # normalize VLM output to schema
+                    nv = norm_field(f, str(raw)) if dt.name == "receipt" else raw
                     if nv is not None:
                         extracted[f] = (nv, 0.80)
-            needs_review, _, reasons = route_decision(extracted)
+            if dt.name == "bank_statement" and vlm_fields.get("transactions"):
+                line_items = vlm_fields["transactions"]
+            needs_review, _, reasons = route_decision(extracted, dt.required)
 
     fields = {}
-    for f in ALL_FIELDS:
+    for f in dt.fields:
         val, conf = extracted.get(f, (None, 0.0))
         fields[f] = FieldValue(value=val, confidence=conf)
         if val is not None:
@@ -86,7 +104,8 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
     metrics.stage_latency.labels("total").observe(time.perf_counter() - t0)
 
     return DocumentResult(
-        document_id=doc_id, route=route, fields=fields, quality=q,
-        needs_human_review=needs_review,
-        model_versions={"ocr": OCR_VERSION, "kie": kie.version},
+        document_id=doc_id, document_type=dt.name, route=route, fields=fields,
+        line_items=line_items, quality=q, needs_human_review=needs_review,
+        model_versions={"ocr": OCR_VERSION, "kie": kie_ver,
+                        "doctype": f"{clf.version}({dt_conf:.2f})"},
     )

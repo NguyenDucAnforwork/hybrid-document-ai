@@ -27,6 +27,21 @@ pipeline, serving and operations. Here the model is **1 of 3 layers**:
 with a confidence router that sends uncertain docs to human review / VLM instead of
 silently emitting wrong data.
 
+## Multi-document (not receipt-only)
+A bank needs more than invoices. The pipeline is **document-type-agnostic** — only the
+KIE schema/anchors/prompt are per-type (`docai/doctypes.py`); quality/OCR/router/VLM/MLOps
+are shared. A learned **document-type router** (`docai/classifier.py`) classifies the doc
+first, then dispatches to the right extractor:
+- **receipt/invoice** → calibrated sklearn KIE (key-value).
+- **bank statement** → header KIE **+ transaction TABLE parsing** (`docai/statement.py`:
+  layout-graph row clustering + column detection → list of `{date, description, amount, balance}`).
+
+Measured on a held-out mix (real SROIE receipts + synthetic statements, `docs/logs/multidoc_*.md`):
+**doc-type routing accuracy 1.00**, statement **table row-F1 1.00 / amount-accuracy 1.00**,
+header exact-match: account_number/holder/period 1.00, balances 0.77–0.90. Adding the next
+type (eKYC ID, payment slip, form…) = one schema entry + (optionally) one extractor; the rest
+is reused. See `docs/mlops.md`.
+
 ## Data & evaluation (the production-hard part)
 - **Real data:** SROIE 2019 — **626 real scanned receipts** (Malaysian, thermal-printer, genuinely noisy). Token-level gold → `merchant_name / date / total_amount`.
 - **Banking degradations** (`docai/augment.py`): dark, low-contrast, blur, motion-blur, rotate, perspective, low-res, JPEG, noise, tear/occlusion, fade — for a **robustness curve**, plus **Vietnamese** synthetic receipts (multilingual).

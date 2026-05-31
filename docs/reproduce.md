@@ -20,9 +20,22 @@ pip install -r requirements.txt                       # core (no torch) ~2GB
 GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://github.com/zzzDavid/ICDAR-2019-SROIE \
     $DOCAI_WORKSPACE/sroie_src
 python scripts/prepare_sroie.py --n-test 80           # -> $WS/data/sroie/{train,test}
-# 1b. Synthetic (EN + tiếng Việt, 5 field, multilingual)
+# 1b. Synthetic receipts (EN + tiếng Việt, 5 field, multilingual)
 python -c "import os;from docai.synth import generate;generate(os.environ['DOCAI_WORKSPACE']+'/data/receipts',120,42)"
+# 1c. Synthetic bank statements (multi-document) — train seed 7, test seed 99
+python -c "import os;from docai.synth import generate_statements as g;g(os.environ['DOCAI_WORKSPACE']+'/data/statements',100,7);g(os.environ['DOCAI_WORKSPACE']+'/data/statements_test',30,99)"
 ```
+
+### Multi-document: train the doc-type router + eval
+```bash
+# doc-type router (receipt vs bank_statement) trained on real SROIE + synthetic
+python training/train_doctype.py --receipts $DOCAI_WORKSPACE/data/sroie/train $DOCAI_WORKSPACE/data/receipts \
+       --statements $DOCAI_WORKSPACE/data/statements --version v2
+# eval: routing accuracy + statement header + transaction TABLE (row-F1, amount-acc)
+python scripts/eval_multidoc.py --limit 30          # -> docs/logs/multidoc_*.md
+```
+The pipeline auto-routes: receipt → sklearn KIE; bank_statement → header KIE + table parsing
+(`docai/statement.py`). Output JSON has `document_type` + `line_items` (transactions).
 
 ## 2. Train KIE — qua MLOps DAG (khuyến nghị) hoặc trực tiếp
 ```bash

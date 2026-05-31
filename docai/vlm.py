@@ -47,16 +47,16 @@ def _load_local():
     return _local["model"], _local["processor"]
 
 
-def _vlm_local(image_bytes: bytes) -> dict | None:
+def _vlm_local(image_bytes: bytes, prompt: str = PROMPT) -> dict | None:
     import io
     from PIL import Image
     model, processor = _load_local()
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     messages = [{"role": "user", "content": [
-        {"type": "image", "image": img}, {"type": "text", "text": PROMPT}]}]
+        {"type": "image", "image": img}, {"type": "text", "text": prompt}]}]
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     inputs = processor(text=[text], images=[img], padding=True, return_tensors="pt").to(model.device)
-    gen = model.generate(**inputs, max_new_tokens=256, do_sample=False)  # guardrail: low cap
+    gen = model.generate(**inputs, max_new_tokens=512, do_sample=False)  # guardrail: low cap
     trimmed = gen[:, inputs.input_ids.shape[1]:]
     out = processor.batch_decode(trimmed, skip_special_tokens=True)[0]
     if not _guardrail_ok(out):
@@ -67,14 +67,15 @@ def _vlm_local(image_bytes: bytes) -> dict | None:
         return None
 
 
-def vlm_extract(image_bytes: bytes) -> dict | None:
+def vlm_extract(image_bytes: bytes, prompt: str | None = None) -> dict | None:
     """Returns extracted fields or None (disabled/failed -> human review)."""
+    prompt = prompt or PROMPT
     mode = os.environ.get("DOCAI_VLM_MODE", "disabled")
     if mode == "disabled":
         return None
-    if mode == "local":          # real VLM on local GPU (H100) for hard cases
+    if mode == "local":          # real VLM on local GPU for hard cases
         try:
-            return _vlm_local(image_bytes)
+            return _vlm_local(image_bytes, prompt)
         except Exception:
             return None
     if mode == "api":
@@ -90,13 +91,13 @@ def vlm_extract(image_bytes: bytes) -> dict | None:
                 headers={"Authorization": f"Bearer {key}"},
                 json={
                     "model": os.environ.get("VLM_MODEL", "qwen2.5-vl"),
-                    "max_tokens": 256,
+                    "max_tokens": 512,
                     "messages": [{"role": "user", "content": [
-                        {"type": "text", "text": PROMPT},
+                        {"type": "text", "text": prompt},
                         {"type": "image_url",
                          "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
                     ]}],
-                }, timeout=30,
+                }, timeout=90,
             )
             txt = r.json()["choices"][0]["message"]["content"]
             if not _guardrail_ok(txt):
