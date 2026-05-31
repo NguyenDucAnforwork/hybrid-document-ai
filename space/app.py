@@ -54,7 +54,7 @@ demo = gr.Interface(
     outputs=[gr.Code(label="Structured result (JSON)", language="json"),
              gr.Markdown(label="Summary")],
     title="Hybrid Document AI — OCR + KIE", description=DESC, examples=examples,
-    allow_flagging="never")
+    flagging_mode="never")
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=7860)
