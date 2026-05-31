@@ -4,6 +4,7 @@ Runs the REAL pipeline: quality -> RapidOCR (PP-OCR) -> KIE (calibrated sklearn
 classifier, downloaded from the HF model registry) -> confidence router.
 """
 import os
+import json
 os.environ.setdefault("DOCAI_WORKSPACE", "/tmp/docai-workspace")
 
 import cv2
@@ -33,7 +34,7 @@ def infer(image):
         f"| field | value | confidence |\n|---|---|---|\n{rows}\n\n"
         f"**Quality:** blur={d['quality']['blur_score']} "
         f"issues={d['quality']['issues']}  ·  KIE `{d['model_versions'].get('kie')}`")
-    return d, summary
+    return json.dumps(d, ensure_ascii=False, indent=2), summary
 
 
 DESC = (
@@ -50,7 +51,8 @@ examples = [[f"examples/{f}"] for f in sorted(os.listdir("examples"))] \
 
 demo = gr.Interface(
     fn=infer, inputs=gr.Image(type="numpy", label="Receipt"),
-    outputs=[gr.JSON(label="Structured result"), gr.Markdown(label="Summary")],
+    outputs=[gr.Code(label="Structured result (JSON)", language="json"),
+             gr.Markdown(label="Summary")],
     title="Hybrid Document AI — OCR + KIE", description=DESC, examples=examples,
     allow_flagging="never")
 
