@@ -18,10 +18,16 @@ _FOOTER = ["total", "tong", "tổng", "closing", "ending", "so du cuoi", "số d
 _COLS = {"date": ["date", "ngay", "ngày"],
          "description": ["desc", "description", "dien giai", "diễn giải", "noi dung", "nội dung"],
          "amount": ["amount", "so tien", "số tiền"],
-         "debit": ["debit", "no ", "nợ", "withdrawal"],
-         "credit": ["credit", "co ", "có", "deposit"],
+         "debit": ["debit", "withdrawal", "no", "nợ"],
+         "credit": ["credit", "deposit", "co", "có"],
          "balance": ["balance", "so du", "số dư"],
          "ref": ["ref", "soct", "so ct", "số ct"]}
+
+
+def _col_match(low, kws):
+    """Word-boundary match so short VN headers 'No'/'Co' match without 'content'
+    falsely matching 'co'."""
+    return any(re.search(rf"\b{re.escape(k)}\b", low) for k in kws)
 
 
 def signed_money(s: str):
@@ -70,7 +76,7 @@ def extract_table(tokens):
         for t in row:
             low = t["text"].lower()
             for col, kws in _COLS.items():
-                if col not in hits and any(k in low for k in kws):
+                if col not in hits and _col_match(low, kws):
                     hits[col] = _cx(t)
         if len(hits) >= 3:
             header_idx, centers = i, hits

@@ -98,6 +98,7 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
     # the rule parser got it wrong -> escalate to the VLM to re-read the table.
     if stmt_recon is not None and stmt_recon < 0.7:
         should_vlm = True
+        needs_review = True          # unreliable table -> flag for human even if VLM off
         reasons.append(f"low_table_reconciliation:{stmt_recon}")
     route = "traditional_ocr"
 

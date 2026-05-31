@@ -44,15 +44,32 @@ Statements use a **hard generator** (random column schema/order incl. separate D
 parenthesis & CR/DR negatives, VN/EN headers, footer distractor rows, x-jitter, multi-word
 descriptions) — *not* the easy single-layout that gave a misleading 1.00.
 
-| | 3-way routing | stmt row-F1 | stmt amount-acc | stmt desc-acc | payment_order (mean field) |
-|---|---|---|---|---|---|
-| **HARD** | 1.00 | 0.99 | **0.35** | **0.55** | ~0.95 |
+| metric | easy (misleading) | **HARD** |
+|---|---|---|
+| 3-way doc routing | 1.00 | 1.00 |
+| stmt table row-F1 | 1.00 | 0.92 |
+| stmt **amount-acc** (rules) | 1.00 | **0.46** |
+| stmt **amount-acc** (rules→VLM-3B fallback) | — | **0.33** (no gain) |
+| stmt desc-acc (after left-edge col fix) | — | **0.99** |
+| payment_order mean field | — | ~0.88 |
 
-**Key finding (the point of the harder data):** row *detection* is robust (0.99), but **amount
-and description accuracy collapse to 0.35 / 0.55 on heterogeneous layouts** — rule-based table
-parsing does NOT generalize across bank formats. Production fix: a **learned table model**
-(LayoutLMv3 / Table-Transformer) or routing hard statements to the **VLM**. Routing stays 1.00
-because the three types differ strongly in global features (that part is genuinely easy).
+**Key findings (the whole point of harder data):**
+1. **Rule-based table parsing does NOT generalize** across bank layouts — amount-acc 1.00→**0.46**.
+2. **A small VLM (Qwen2.5-VL-3B) doesn't rescue it either** (0.33) — statement table extraction at
+   scale genuinely needs a **table-structure model** (Table-Transformer / LayoutLMv3) or a larger VLM.
+3. **But the system stays safe:** a **balance-reconciliation guard** (`statement.reconcile`: does
+   running balance match parsed amounts?) flags **~87%** of hard statements as `needs_human_review`
+   — so wrong financial figures are *not emitted silently*, even when extraction is unreliable.
+   (Debugging the harder data also found & fixed real bugs: a missing-description render bug, CR/DR
+   column-shift, and VN Nợ/Có header matching.)
+
+Routing stays 1.00 because the three doc types differ strongly in global features (genuinely easy).
+
+### Batch demo (5–10 documents)
+The live Space has a **Batch tab**: drop 5–10 mixed documents → each is auto-routed
+(receipt/statement/payment_order), extracted, and shown in a results table (type · route ·
+review-flag · key field · #transactions) with a batch summary. Backed by the async
+`/batch_jobs` API + orchestrator (per-doc state machine, retry, dead-letter) for production.
 
 ## Data & evaluation (the production-hard part)
 - **Real data:** SROIE 2019 — **626 real scanned receipts** (Malaysian, thermal-printer, genuinely noisy). Token-level gold → `merchant_name / date / total_amount`.

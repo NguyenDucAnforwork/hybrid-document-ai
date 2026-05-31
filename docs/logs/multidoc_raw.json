@@ -11,27 +11,27 @@
       "bank_name": 1.0,
       "account_number": 1.0,
       "account_holder": 1.0,
-      "statement_period": 0.433,
-      "opening_balance": 0.967,
-      "closing_balance": 0.9
+      "statement_period": 0.667,
+      "opening_balance": 0.917,
+      "closing_balance": 1.0
     },
-    "table_row_f1": 0.924,
-    "table_amount_accuracy": 0.375,
-    "table_description_anls@.5": 0.989,
-    "n": 30
+    "table_row_f1": 0.921,
+    "table_amount_accuracy": 0.333,
+    "table_description_anls@.5": 0.981,
+    "n": 12
   },
   "payment_order": {
     "routing_correct": 1.0,
     "field_exact_match": {
-      "bank_name": 0.867,
-      "sender_name": 1.0,
-      "sender_account": 0.967,
-      "beneficiary_name": 1.0,
+      "bank_name": 0.667,
+      "sender_name": 0.833,
+      "sender_account": 1.0,
+      "beneficiary_name": 0.833,
       "beneficiary_account": 1.0,
-      "amount": 0.867,
+      "amount": 0.833,
       "content": 1.0,
-      "date": 1.0
+      "date": 0.833
     },
-    "n": 30
+    "n": 12
   }
 }
