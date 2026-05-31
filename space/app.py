@@ -1,8 +1,8 @@
 """Hybrid Document AI — live demo (HuggingFace Space, Gradio 5).
 
-Runs the REAL pipeline: quality -> RapidOCR (PP-OCR) -> KIE (calibrated sklearn
-classifier from the HF model registry) -> confidence router. (VLM hard-case path
-runs on GPU; on this free CPU Space the traditional path is served.)
+Multi-document: routes receipt / bank_statement / payment_order, then extracts.
+Two tabs: single document, and BATCH (5–10 images) for a production-style demo.
+VLM hard-case fallback runs on Modal (serverless GPU) via mode=api.
 """
 import os
 import json
@@ -13,71 +13,93 @@ import numpy as np
 import gradio as gr
 from huggingface_hub import hf_hub_download
 
-# Fix gradio_client schema bug ("argument of type 'bool' is not iterable") that
-# 500s /gradio_api/info -> "No API found". Boolean JSON-schema nodes are valid
-# (additionalProperties: true/false) but the parser doesn't guard for them.
+# Fix gradio_client schema bug (bool 'additionalProperties') that 500s /info.
 import gradio_client.utils as _gcu
-_orig_get_type = _gcu.get_type
-_orig_js = _gcu._json_schema_to_python_type
-def _safe_get_type(schema):
-    return "Any" if isinstance(schema, bool) else _orig_get_type(schema)
-def _safe_js(schema, defs=None):
-    return "Any" if isinstance(schema, bool) else _orig_js(schema, defs)
-_gcu.get_type = _safe_get_type
-_gcu._json_schema_to_python_type = _safe_js
+_o1, _o2 = _gcu.get_type, _gcu._json_schema_to_python_type
+_gcu.get_type = lambda s: "Any" if isinstance(s, bool) else _o1(s)
+_gcu._json_schema_to_python_type = lambda s, d=None: "Any" if isinstance(s, bool) else _o2(s, d)
 
 from docai import pipeline
 from docai import classifier as _clf
 from docai.kie import KIEModel
 
 # Load trained models from the HF registry (Space has no /data workspace).
-_model_file = hf_hub_download("banhchungtuongot/hybrid-docai-kie", "kie/v4/model.joblib")
-pipeline._kie = KIEModel.load(_model_file)
-_dt_file = hf_hub_download("banhchungtuongot/hybrid-docai-kie", "doctype/v3/model.joblib")
-_clf._loaded = _clf.DocTypeClassifier.load(_dt_file)   # 3-way doc-type router
+pipeline._kie = KIEModel.load(hf_hub_download("banhchungtuongot/hybrid-docai-kie", "kie/v4/model.joblib"))
+_clf._loaded = _clf.DocTypeClassifier.load(
+    hf_hub_download("banhchungtuongot/hybrid-docai-kie", "doctype/v3/model.joblib"))
+
+_KEYFIELD = {"receipt": "total_amount", "bank_statement": "closing_balance",
+             "payment_order": "amount"}
+
+
+def _run(image_bgr, name="doc"):
+    ok, enc = cv2.imencode(".jpg", image_bgr)
+    return pipeline.process_document(name, enc.tobytes()).model_dump()
 
 
 def infer(image):
     if image is None:
-        return "{}", "Upload a receipt image first."
-    bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    _, enc = cv2.imencode(".jpg", bgr)
-    res = pipeline.process_document("upload", enc.tobytes())
-    d = res.model_dump()
-    rows = "\n".join(f"| {k} | {v['value']} | {v['confidence']} |"
-                     for k, v in d["fields"].items())
+        return "{}", "Upload a document image first."
+    d = _run(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+    rows = "\n".join(f"| {k} | {v['value']} | {v['confidence']} |" for k, v in d["fields"].items())
     tx = d.get("line_items") or []
     tx_note = f"\n\n**Transactions parsed:** {len(tx)} rows" if tx else ""
-    summary = (
-        f"### Document type: `{d['document_type']}` · Route: `{d['route']}` · "
-        f"needs_human_review: **{d['needs_human_review']}**\n\n"
-        f"| field | value | confidence |\n|---|---|---|\n{rows}{tx_note}\n\n"
-        f"**Quality:** blur={d['quality']['blur_score']} issues={d['quality']['issues']} "
-        f"· models `{d['model_versions']}`")
+    summary = (f"### Document type: `{d['document_type']}` · Route: `{d['route']}` · "
+               f"needs_human_review: **{d['needs_human_review']}**\n\n"
+               f"| field | value | confidence |\n|---|---|---|\n{rows}{tx_note}\n\n"
+               f"**Quality:** blur={d['quality']['blur_score']} · models `{d['model_versions']}`")
     return json.dumps(d, ensure_ascii=False, indent=2), summary
 
 
+def batch_infer(files):
+    """Process 5–10 documents at once (production-style batch demo)."""
+    if not files:
+        return [], {"error": "upload 1–10 images"}
+    rows, counts = [], {}
+    n_review = n_vlm = 0
+    for fp in files[:10]:
+        img = cv2.imread(fp)
+        if img is None:
+            continue
+        d = _run(img, os.path.basename(fp))
+        t = d["document_type"]; counts[t] = counts.get(t, 0) + 1
+        n_review += int(d["needs_human_review"]); n_vlm += int(d["route"] == "vlm_fallback")
+        kf = _KEYFIELD.get(t)
+        kv = d["fields"].get(kf, {}).get("value") if kf else None
+        rows.append([os.path.basename(fp), t, d["route"],
+                     "✋" if d["needs_human_review"] else "✓",
+                     f"{kf}={kv}", len(d.get("line_items") or [])])
+    summary = {"total": len(rows), "by_type": counts,
+               "needs_human_review": n_review, "vlm_fallback": n_vlm}
+    return rows, summary
+
+
 DESC = (
-    "# 🧾 Hybrid Document AI — Receipt OCR + KIE\n"
-    "Production-grade pipeline (VNPAY AI Engineer portfolio). **RapidOCR (PP-OCR)** reads "
-    "text → a **calibrated scikit-learn KIE classifier** extracts fields → a **confidence "
-    "router** flags low-confidence docs for human review (won't silently emit wrong data). "
-    "Trained on real **SROIE** receipts + synthetic VN data.\n\n"
-    "date & total_amount work well; merchant_name is a known-hard field. "
-    "Code: github.com/NguyenDucAnforwork/hybrid-document-ai")
+    "# 🧾 Hybrid Document AI — multi-document OCR + KIE (VNPAY portfolio)\n"
+    "Auto-routes **receipt · bank statement · payment order (ủy nhiệm chi)** → extracts fields "
+    "(+ transaction table for statements). Low-confidence / unreconciled docs escalate to a "
+    "**VLM on Modal**. Code: github.com/NguyenDucAnforwork/hybrid-document-ai")
+EX = "examples"
+ex = [[f"{EX}/{f}"] for f in sorted(os.listdir(EX))] if os.path.isdir(EX) else None
 
 with gr.Blocks(title="Hybrid Document AI — OCR + KIE") as demo:
     gr.Markdown(DESC)
-    with gr.Row():
-        inp = gr.Image(type="numpy", label="Receipt")
-        with gr.Column():
-            out_md = gr.Markdown(label="Summary")
-            out_json = gr.Code(label="Structured result (JSON)", language="json")
-    btn = gr.Button("Extract", variant="primary")
-    btn.click(infer, inputs=inp, outputs=[out_json, out_md], api_name="predict")
-    ex_dir = "examples"
-    if os.path.isdir(ex_dir):
-        gr.Examples([[f"{ex_dir}/{f}"] for f in sorted(os.listdir(ex_dir))], inputs=inp)
+    with gr.Tab("Single document"):
+        with gr.Row():
+            inp = gr.Image(type="numpy", label="Document")
+            with gr.Column():
+                out_md = gr.Markdown()
+                out_json = gr.Code(label="Structured result (JSON)", language="json")
+        gr.Button("Extract", variant="primary").click(infer, inp, [out_json, out_md], api_name="predict")
+        if ex:
+            gr.Examples(ex, inputs=inp)
+    with gr.Tab("Batch (5–10 documents)"):
+        bfiles = gr.File(file_count="multiple", file_types=["image"], label="Drop 5–10 images")
+        btn = gr.Button("Process batch", variant="primary")
+        btable = gr.Dataframe(headers=["file", "doc_type", "route", "review", "key_field", "#tx"],
+                              label="Per-document results", wrap=True)
+        bsum = gr.JSON(label="Batch summary")
+        btn.click(batch_infer, bfiles, [btable, bsum], api_name="batch")
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=7860)

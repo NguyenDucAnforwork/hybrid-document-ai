@@ -78,12 +78,22 @@ def extract_table(tokens):
     if header_idx is None:
         return []
     order = sorted(centers, key=lambda c: centers[c])
+    cs = [centers[c] for c in order]
+    bounds = [(cs[i] + cs[i + 1]) / 2 for i in range(len(cs) - 1)]
+
+    def col_of(x0):
+        i = 0
+        while i < len(bounds) and x0 >= bounds[i]:
+            i += 1
+        return order[i]
+
     items = []
     for row in rows[header_idx + 1:]:
         cells = {c: [] for c in order}
         for t in row:
-            col = min(order, key=lambda c: abs(_cx(t) - centers[c]))
-            cells[col].append(t["text"])
+            # assign by LEFT edge (cells are left-aligned) -> robust to right-
+            # extending suffixes like " CR"/" DR" that shift the token center.
+            cells[col_of(t["bbox"][0])].append(t["text"])
         joined = {c: " ".join(cells[c]).strip() for c in order}
         desc = joined.get("description", "")
         # skip footer/summary rows (Total / Closing / Tổng ...) and non-date rows
@@ -103,6 +113,21 @@ def extract_table(tokens):
                       "description": desc.lower() or None,
                       "amount": amt, "balance": bal})
     return items
+
+
+def reconcile(items, opening, closing) -> float:
+    """Domain check: does running balance match amounts? Returns fraction of rows
+    where balance[i] ≈ balance[i-1] + amount[i]. Low score => parser got the table
+    wrong => route to VLM. (A signal the rule parser can't self-assess otherwise.)"""
+    if not items:
+        return 0.0
+    ok, prev = 0, opening
+    for it in items:
+        amt, bal = it.get("amount"), it.get("balance")
+        if amt is not None and bal is not None and prev is not None and abs(prev + amt - bal) < 1:
+            ok += 1
+        prev = bal if bal is not None else prev
+    return round(ok / len(items), 3)
 
 
 def extract_statement(tokens):

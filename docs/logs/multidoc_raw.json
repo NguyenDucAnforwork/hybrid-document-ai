@@ -15,9 +15,9 @@
       "opening_balance": 0.967,
       "closing_balance": 0.9
     },
-    "table_row_f1": 0.989,
-    "table_amount_accuracy": 0.352,
-    "table_description_anls@.5": 0.546,
+    "table_row_f1": 0.924,
+    "table_amount_accuracy": 0.375,
+    "table_description_anls@.5": 0.989,
     "n": 30
   },
   "payment_order": {

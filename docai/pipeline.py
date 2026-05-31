@@ -15,7 +15,7 @@ from .registry import active_path
 from .config import ALL_FIELDS
 from . import doctypes
 from .classifier import get_classifier
-from .statement import extract_statement
+from .statement import extract_statement, reconcile
 
 _kie: KIEModel | None = None
 
@@ -26,6 +26,23 @@ def get_kie() -> KIEModel:
         p = active_path("kie")
         _kie = KIEModel.load(p) if p and p.exists() else KIEModel()
     return _kie
+
+
+def _normalize_txns(txns) -> list[dict]:
+    """Normalize VLM-returned transactions to our schema (ISO date, float amounts)."""
+    from .kie import norm_date
+    from .statement import signed_money
+    out = []
+    for t in (txns or []):
+        if not isinstance(t, dict):
+            continue
+        out.append({
+            "date": norm_date(str(t.get("date", ""))),
+            "description": (str(t["description"]).lower() if t.get("description") else None),
+            "amount": signed_money(str(t.get("amount", ""))),
+            "balance": signed_money(str(t.get("balance", ""))),
+        })
+    return out
 
 
 def _decode(image_bytes: bytes) -> np.ndarray:
@@ -60,9 +77,12 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
     line_items = []
     kie_ver = "n/a"
 
+    stmt_recon = None
     with metrics.stage_latency.labels("kie").time():
         if dt.name == "bank_statement":
             extracted, line_items = extract_statement(tokens)
+            stmt_recon = reconcile(line_items, extracted.get("opening_balance", (None,))[0],
+                                   extracted.get("closing_balance", (None,))[0])
             kie_ver = "statement-rules+table"
         elif dt.name == "payment_order":
             from .kv import kv_extract
@@ -74,6 +94,11 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
             kie_ver = kie.version
 
     needs_review, should_vlm, reasons = route_decision(extracted, dt.required)
+    # Statement-specific trigger: if the parsed table fails balance reconciliation,
+    # the rule parser got it wrong -> escalate to the VLM to re-read the table.
+    if stmt_recon is not None and stmt_recon < 0.7:
+        should_vlm = True
+        reasons.append(f"low_table_reconciliation:{stmt_recon}")
     route = "traditional_ocr"
 
     if should_vlm:
@@ -89,8 +114,12 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
                     if nv is not None:
                         extracted[f] = (nv, 0.80)
             if dt.name == "bank_statement" and vlm_fields.get("transactions"):
-                line_items = vlm_fields["transactions"]
+                line_items = _normalize_txns(vlm_fields["transactions"])
             needs_review, _, reasons = route_decision(extracted, dt.required)
+            if stmt_recon is not None:   # re-check table after VLM
+                r2 = reconcile(line_items, extracted.get("opening_balance", (None,))[0],
+                               extracted.get("closing_balance", (None,))[0])
+                needs_review = needs_review or (r2 < 0.7)
 
     fields = {}
     for f in dt.fields:
