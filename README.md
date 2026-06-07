@@ -155,7 +155,82 @@ misses). Same wiring works on an RTX 1650. Alternatives (managed Qwen API, local
 - **Serving**: dynamic batcher (runnable) + KServe `deploy/kserve.yaml` (scale-to-zero/out) + Triton/vLLM.
 - **Monitoring**: `/metrics` + drift signals + `monitoring/alerts.yaml`. **Chaos**: `mlops/chaos.py`. **DR**: `docs/runbook-dr.md`.
 
-## Quickstart
+## Demo (chạy ngay — 3 paths)
+
+### Path 1 — API trực tiếp (~30s setup, không cần Docker)
+
+```bash
+# Terminal 1 — khởi động API
+cd /workspace/hybrid-document-ai
+export DOCAI_WORKSPACE=/workspace/docai-ws
+export DOCAI_VLM_MODE=disabled
+/opt/miniforge3/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+```bash
+# Terminal 2 — test sau khi thấy "Application startup complete"
+
+# Health check
+curl http://localhost:8000/health | python3 -m json.tool
+
+# Extract 1 ảnh receipt
+curl -s -X POST http://localhost:8000/documents/extract \
+  -F "file=@$DOCAI_WORKSPACE/data/sroie/test/images/000.jpg" | python3 -m json.tool
+
+# v1 API — upload → poll result
+DOC_ID=$(curl -s -X POST http://localhost:8000/v1/documents \
+  -F "file=@$DOCAI_WORKSPACE/data/sroie/test/images/001.jpg" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['doc_id'])")
+curl -s http://localhost:8000/v1/documents/$DOC_ID/result | python3 -m json.tool
+
+# Batch (5 ảnh cùng lúc)
+curl -s -X POST http://localhost:8000/batch_jobs \
+  -F "files=@$DOCAI_WORKSPACE/data/sroie/test/images/000.jpg" \
+  -F "files=@$DOCAI_WORKSPACE/data/sroie/test/images/001.jpg" \
+  -F "files=@$DOCAI_WORKSPACE/data/sroie/test/images/002.jpg" \
+  -F "files=@$DOCAI_WORKSPACE/data/sroie/test/images/003.jpg" \
+  -F "files=@$DOCAI_WORKSPACE/data/sroie/test/images/004.jpg" | python3 -m json.tool
+
+# Prometheus metrics
+curl -s http://localhost:8000/metrics | grep -E "^docai_"
+```
+
+### Path 2 — Docker Compose (full stack: Redis + MinIO + Prometheus + Grafana)
+
+```bash
+cd /workspace/hybrid-document-ai
+export DOCAI_WORKSPACE=/workspace/docai-ws
+docker compose -f deploy/docker-compose.yml up --build
+```
+
+Sau khi up: API `http://localhost:8000` · Prometheus `http://localhost:9090` ·
+Grafana `http://localhost:3000` (admin/admin) · MinIO console `http://localhost:9001` (minio/minio123).
+
+### Path 3 — Scripts eval & benchmark
+
+```bash
+export DOCAI_WORKSPACE=/workspace/docai-ws
+export DOCAI_VLM_MODE=disabled
+
+# So sánh 3 model (rule vs logistic vs LayoutLMv3)
+/opt/miniforge3/bin/python scripts/compare_models.py \
+  --test-data $DOCAI_WORKSPACE/data/sroie/test/labels.json \
+  --test-img-dir $DOCAI_WORKSPACE/data/sroie/test/images \
+  --layoutlmv3-dir $DOCAI_WORKSPACE/models/layoutlmv3/model
+
+# ONNX benchmark (PyTorch CUDA vs FP32-CPU vs INT8-CPU)
+/opt/miniforge3/bin/python training/export_onnx.py \
+  --model-dir $DOCAI_WORKSPACE/models/layoutlmv3/model \
+  --out-dir $DOCAI_WORKSPACE/models/layoutlmv3
+
+# Load test throughput (cần API đang chạy ở Path 1)
+/opt/miniforge3/bin/python scripts/load_test.py \
+  --url http://localhost:8000 \
+  --img-dir $DOCAI_WORKSPACE/data/sroie/test/images
+```
+
+## Reproduce từ đầu (training pipeline)
+
 ```bash
 # 0. Môi trường — dùng conda (torch CUDA wheels ~11GB, cần /data)
 /opt/miniforge3/bin/conda create -n docai python=3.11 -y
@@ -164,8 +239,8 @@ pip install -r requirements.txt
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 pip install "transformers==4.49.0" "accelerate>=0.26.0"  # pin version, tránh float8 incompatibility
 
-export DOCAI_WORKSPACE=/workspace/docai-ws               # đổi nếu máy khác
-export HF_TOKEN=$(grep HF_TOKEN_geminipro /workspace/.env | cut -d= -f2)
+export DOCAI_WORKSPACE=/workspace/docai-ws
+export HF_TOKEN=$(grep HF_TOKEN /workspace/.env | head -1 | cut -d= -f2)
 
 # 1. Data SROIE thật
 python scripts/prepare_sroie.py \
@@ -185,29 +260,16 @@ python scripts/compare_models.py --limit 80 --out docs/logs
 python scripts/run_benchmark.py --data $DOCAI_WORKSPACE/data/sroie/test --f1-threshold 0.2
 python scripts/eval_robustness.py --data $DOCAI_WORKSPACE/data/sroie/test --limit 30
 
-# 5. API (v1 endpoints)
-uvicorn app.main:app --port 8000
-# POST /v1/documents  (upload + idempotency key)
-# POST /v1/extraction_jobs
-# POST /v1/documents/{id}/feedback  (human correction loop)
-
-# 6. Load test (batch 1/5/10 docs, 3 rounds)
+# 5. Load test (batch 1/5/10 docs, 3 rounds)
 python scripts/load_test.py \
     --url http://localhost:8000 \
     --img-dir $DOCAI_WORKSPACE/data/sroie/test/images
 
-# 7. Chaos + CI
+# 6. Chaos + CI
 python -m mlops.chaos
 ```
 
-### Deploy (local stack — runnable)
-```bash
-# Stack: api + redis + minio + prometheus + grafana (auto-provisioned datasource)
-cd deploy && docker compose up
-# KServe / Triton / vLLM là cloud-only targets, không có trong stack này
-```
-
-Full walkthrough: **`test.ipynb`** · reproduce: `docs/reproduce.md`.
+Full walkthrough: **`test.ipynb`** · reproduce step-by-step: `docs/reproduce.md`.
 
 ## API v1
 | Endpoint | Mô tả |
