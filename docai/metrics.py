@@ -18,6 +18,9 @@ human_review_total = Counter("human_review_total", "docs flagged for human revie
 extraction_schema_valid_total = Counter("extraction_schema_valid_total", "valid schema extractions", ["valid"])
 document_type_total = Counter("document_type_total", "doc type distribution", ["doc_type"])
 
+# --- Input errors ---
+decode_error_total = Counter("decode_error_total", "docs rejected at decode (empty/corrupt/unsupported)")
+
 # --- Business safety (fintech-critical) ---
 amount_reconciliation_fail_total = Counter(
     "amount_reconciliation_fail_total",

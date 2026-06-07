@@ -2,28 +2,102 @@
 groups:
   - name: docai
     rules:
-      - alert: HighHumanReviewRate
-        expr: rate(human_review_total[10m]) / rate(documents_processed_total[10m]) > 0.5
-        for: 10m
-        labels: {severity: warning}
-        annotations: {summary: "Human-review rate >50% — possible model/data drift"}
-      - alert: VLMFallbackSpike
-        expr: rate(vlm_fallback_total[10m]) > 0.3
-        for: 10m
-        labels: {severity: warning}
-        annotations: {summary: "VLM fallback spiking — OCR/KIE quality dropping (cost+latency risk)"}
+      # ── Throughput & latency ──────────────────────────────────────────────────
+
       - alert: HighLatencyP95
         expr: histogram_quantile(0.95, rate(stage_latency_seconds_bucket{stage="total"}[5m])) > 3
         for: 5m
         labels: {severity: critical}
-        annotations: {summary: "p95 end-to-end latency > 3s"}
+        annotations:
+          summary: "p95 end-to-end latency > 3s"
+          runbook: "Check GPU/CPU saturation; oversized image cap at 3000px should prevent the worst cases."
+
+      # ── Input error rate ─────────────────────────────────────────────────────
+
+      - alert: HighDecodeErrorRate
+        # decode_error_total / documents_processed_total (all statuses)
+        expr: |
+          rate(decode_error_total[10m])
+          / (rate(documents_processed_total[10m]) + rate(decode_error_total[10m]))
+          > 0.05
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "OCR decode error rate > 5% — possible upstream data quality issue or adversarial uploads"
+          runbook: "Check client-side validation; consider adding MIME-type allow-list on the load balancer."
+
+      # ── Human review rate ─────────────────────────────────────────────────────
+      # Baseline for SROIE receipts is ~72%. Alert at 90% (something is badly wrong)
+      # and watch for a sudden spike relative to the rolling 1-hour average.
+
+      - alert: CriticalHumanReviewRate
+        expr: rate(human_review_total[10m]) / rate(documents_processed_total[10m]) > 0.90
+        for: 10m
+        labels: {severity: critical}
+        annotations:
+          summary: "Human-review rate >90% for 10 min — pipeline near-total failure or severe data drift"
+          runbook: "Inspect recent inputs; check OCR service health; verify KIE model weights are loaded."
+
+      - alert: NeedsReviewSpike
+        # Sudden >40% increase above the 1-hour rolling baseline signals domain shift.
+        expr: |
+          (rate(human_review_total[5m]) / rate(documents_processed_total[5m]))
+          > 1.4 * (rate(human_review_total[1h]) / rate(documents_processed_total[1h]))
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Human-review rate spiked >40% above 1-hour baseline — possible data drift or incident"
+          runbook: "Compare recent document types vs training distribution; check for new merchants or layouts."
+
+      # ── Silent wrong proxy ────────────────────────────────────────────────────
+      # high_risk_auto_accept_total tracks docs where avg_conf > 0.85 AND
+      # needs_review = True. A rising rate means confident-but-wrong extractions
+      # are increasing — the leading indicator of silent wrongs reaching operators.
+
+      - alert: HighRiskAutoAcceptSpike
+        expr: rate(high_risk_auto_accept_total[10m]) > 0.05
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "High-confidence flagged docs > 5/min — model overconfidence increasing (silent-wrong risk)"
+          runbook: "Audit recent flagged docs; consider lowering DOCAI_CONF_TOTAL threshold."
+
+      # ── VLM fallback ──────────────────────────────────────────────────────────
+
+      - alert: VLMFallbackSpike
+        expr: rate(vlm_fallback_total[10m]) > 0.3
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "VLM fallback spiking — OCR/KIE quality dropping (cost + latency risk)"
+          runbook: "Check input image quality distribution; validate OCR model version."
+
+      # ── Input quality drift ───────────────────────────────────────────────────
+
       - alert: InputBlurDrift
         expr: histogram_quantile(0.5, rate(input_blur_score_bucket[1h])) < 50
         for: 30m
         labels: {severity: warning}
-        annotations: {summary: "Input image quality distribution shifted (blurrier) — domain shift"}
+        annotations:
+          summary: "Input image quality distribution shifted (blurrier) — domain shift"
+          runbook: "Verify upstream scanner/camera quality; check for new document sources."
+
       - alert: ConfidenceDrop
         expr: histogram_quantile(0.5, rate(field_confidence_bucket[1h])) < 0.6
         for: 30m
         labels: {severity: warning}
-        annotations: {summary: "Median field confidence dropped — model degradation / OOD inputs"}
+        annotations:
+          summary: "Median field confidence dropped — model degradation or OOD inputs"
+          runbook: "Compare with confidence baseline; re-evaluate KIE model performance on recent samples."
+
+      # ── Resource (GPU placeholder — enable when GPU inference is active) ──────
+
+      - alert: GPUMemoryHigh
+        # gpu_memory_used_bytes / gpu_memory_total_bytes — requires node-exporter
+        # with DCGM or custom GPU exporter. Placeholder: update metric name for your stack.
+        expr: (gpu_memory_used_bytes / gpu_memory_total_bytes) > 0.90
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "GPU memory > 90% — OOM risk for VLM inference"
+          runbook: "Reduce VLM batch size or scale out GPU workers."

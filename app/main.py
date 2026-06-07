@@ -240,13 +240,23 @@ async def v1_get_result(doc_id: str):
 
 
 class FeedbackPayload(BaseModel):
-    corrected_fields: dict          # e.g. {"total_amount": "12.50", "date": "2024-01-15"}
-    correction_type: str = "field_value"  # field_value | wrong_doc_type | false_review_flag
+    corrected_fields: dict           # e.g. {"total_amount": "12.50", "date": "2024-01-15"}
+    correction_type: str = "field_value"   # field_value | wrong_doc_type | false_review_flag
+    # Optional: original model extraction before correction. When provided,
+    # stored alongside the correction so the training script can compute
+    # token-level BIO labels for LayoutLMv3 without re-running inference.
+    original_extraction: dict | None = None
+    pipeline_flags: list[str] | None = None   # reasons[] from DocumentResult
 
 
 @app.post("/v1/documents/{doc_id}/feedback", status_code=201)
 async def v1_submit_feedback(doc_id: str, payload: FeedbackPayload):
-    """Human correction → append to feedback log for active-learning retraining."""
+    """Human correction → append to feedback log for active-learning retraining.
+
+    Schema is LayoutLMv3-training-ready: a conversion script pairs this entry
+    with the source image (identified by filename) and the OCR token stream to
+    produce (words, bboxes, labels) training samples.
+    """
     doc = _v1_docs.get(doc_id)
     if not doc:
         raise HTTPException(404, "document not found")
@@ -256,8 +266,10 @@ async def v1_submit_feedback(doc_id: str, payload: FeedbackPayload):
     entry = {
         "document_id": doc_id,
         "filename": doc.get("filename"),
+        "original_extraction": payload.original_extraction,
         "corrected_fields": payload.corrected_fields,
         "correction_type": payload.correction_type,
+        "pipeline_flags": payload.pipeline_flags,
         "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     log_path = feedback_dir / "corrections.jsonl"

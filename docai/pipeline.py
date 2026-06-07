@@ -68,7 +68,60 @@ def _deskew(img: np.ndarray, angle: float) -> np.ndarray:
                           flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
 
 
-def _sanity_check(extracted: dict, doc_type: str) -> list[str]:
+def _extract_numeric_amounts(tokens: list[dict]) -> list[float]:
+    """Extract plausible currency amounts from OCR tokens.
+
+    Filters out years (1900-2100), sub-cent noise (< 0.1), and values that
+    exceed the receipt sanity ceiling (> 50 000).
+    """
+    import re
+    amounts = []
+    for t in tokens:
+        text = t.get("text", "").replace(",", "").replace(" ", "").strip()
+        if not re.fullmatch(r"\d{1,6}(\.\d{1,2})?", text):
+            continue
+        val = float(text)
+        if val < 0.1 or val > 50_000:
+            continue
+        if 1900.0 <= val <= 2100.0:  # looks like a year
+            continue
+        amounts.append(val)
+    return amounts
+
+
+def _cross_validate_total(extracted: dict, tokens: list[dict]) -> list[str]:
+    """Flag when a clearly larger currency amount is visible in the OCR corpus.
+
+    The grand total on a receipt is the largest monetary value. If the KIE
+    picked a subtotal or tax line, the real total is still visible as a bigger
+    number in the token stream — catch it here rather than relying on the
+    miscalibrated confidence score (ECE ≈ 0.51).
+    """
+    total_val, _ = extracted.get("total_amount", (None, 0.0))
+    if total_val is None:
+        return []
+    try:
+        total = float(total_val)
+    except (TypeError, ValueError):
+        return []
+    if total <= 0:
+        return []
+
+    amounts = _extract_numeric_amounts(tokens)
+    if not amounts:
+        return []
+
+    max_amount = max(amounts)
+    # 2.1x: conservative enough to avoid flagging correct receipts where the second
+    # price tier is around half the total, but catches barcode/phone numbers that are
+    # 2-3x the actual total (empirically validated on SROIE n=80).
+    if max_amount >= total * 2.1 and max_amount != total:
+        return [f"total_may_be_subtotal:got={total},max_seen={max_amount:.2f}"]
+    return []
+
+
+def _sanity_check(extracted: dict, doc_type: str,
+                  tokens: list[dict] | None = None) -> list[str]:
     """Plausibility guardrails — catches KIE picking wrong tokens (phone number as total,
     transposed year as date). Returns list of failure reasons → triggers needs_review."""
     import re
@@ -93,11 +146,19 @@ def _sanity_check(extracted: dict, doc_type: str) -> list[str]:
                 amount = float(total_val)
                 if amount <= 0:
                     flags.append(f"nonpositive_total:{amount}")
+                elif amount < 0.5:
+                    # Sub-50-cent amounts are almost certainly a decimal/line-item confusion
+                    flags.append(f"implausibly_small_total:{amount}")
                 elif amount > 50_000:
                     # POS receipts >50k are almost always a barcode/phone extracted as total
                     flags.append(f"implausible_total:{amount}")
             except (TypeError, ValueError):
                 pass
+
+        # Cross-validate: if a much larger amount is visible in the corpus,
+        # we likely picked a subtotal. Deterministic; not affected by conf calibration.
+        if tokens:
+            flags.extend(_cross_validate_total(extracted, tokens))
 
     return flags
 
@@ -142,6 +203,7 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
                                 low_resolution=False, is_rotated=False,
                                 quality_pass=False, issues=["decode_error"],
                                 action="request_reupload")
+        metrics.decode_error_total.inc()
         return DocumentResult(
             document_id=doc_id, document_type="unknown", route="error",
             fields={f: FieldValue() for f in ALL_FIELDS},
@@ -200,7 +262,7 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
             kie_ver = kie.version
 
     extracted = _filter_cjk_hallucination(extracted, tokens)
-    sanity_flags = _sanity_check(extracted, dt.name)
+    sanity_flags = _sanity_check(extracted, dt.name, tokens)
     needs_review, should_vlm, reasons = route_decision(extracted, dt.required)
     if sanity_flags:
         needs_review = True

@@ -38,7 +38,18 @@ REQUIRED_FIELDS = ["date", "total_amount"]
 ALL_FIELDS = ["merchant_name", "date", "total_amount", "invoice_id", "payment_method"]
 
 # Confidence router thresholds.
+# Global fallback; field-specific values override where model calibration differs.
 MIN_FIELD_CONFIDENCE = float(os.environ.get("DOCAI_MIN_CONF", "0.75"))
+
+# Per-field thresholds: total_amount uses a higher bar because its ECE ≈ 0.51
+# (severely overconfident). date is well-calibrated (ECE ≈ 0.40); merchant is
+# optional/noisy so the bar is lower to avoid saturating the router.
+# Override individually via env vars without changing code.
+FIELD_CONFIDENCE_THRESHOLDS: dict[str, float] = {
+    "total_amount": float(os.environ.get("DOCAI_CONF_TOTAL", "0.80")),
+    "date":         float(os.environ.get("DOCAI_CONF_DATE",  "0.75")),
+    "merchant_name": float(os.environ.get("DOCAI_CONF_MERCHANT", "0.65")),
+}
 
 # Quality thresholds.
 BLUR_THRESHOLD = 100.0
