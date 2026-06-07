@@ -5,13 +5,30 @@ Mục tiêu: dựng lại pipeline — ingest data thật (SROIE) → train KIE 
 hiện có (`scripts/`, `training/`, `mlops/`).
 
 ## 0. Môi trường
-- Linux, Python 3.11–3.13. **Heavy artifacts để trên `/data`** (venv/data/models/cache) vì `/home` máy gốc đầy.
-- **Bắt buộc:** set `DOCAI_WORKSPACE` TRƯỚC khi import `docai` (config đọc env lúc import).
+- Linux, Python 3.11. **Heavy artifacts để trên `/workspace` hoặc `/data`** (conda env/data/models/cache) vì `/home` máy gốc đầy.
+- **Bắt buộc:** set `DOCAI_WORKSPACE` và `HF_TOKEN` TRƯỚC khi import `docai`.
+- **Lưu ý disk:** conda env + torch CUDA wheels thực tế ~12GB (vượt ước tính ban đầu ~2GB). Cần ít nhất 15GB trống trên partition chứa conda env.
+
 ```bash
-export DOCAI_WORKSPACE=/data/nvidia-ai-workspace      # đổi sang chỗ có >=10GB nếu máy khác
-python3 -m venv $DOCAI_WORKSPACE/venv && source $DOCAI_WORKSPACE/venv/bin/activate
-pip install -r requirements.txt                       # core (no torch) ~2GB
-# (chỉ khi chạy VLM LOCAL) thêm: pip install "transformers==4.49.0" torch torchvision accelerate qwen-vl-utils
+# Tạo conda env (dùng miniforge, không dùng venv vì torch CUDA cần conda solver)
+export DOCAI_WORKSPACE=/workspace/docai-ws            # đổi sang chỗ có >=15GB
+/opt/miniforge3/bin/conda create -n docai python=3.11 -y
+source /opt/miniforge3/etc/profile.d/conda.sh
+conda activate docai
+
+# Core dependencies
+pip install -r requirements.txt                        # core (no torch) ~2GB
+
+# Torch + transformers cho LayoutLMv3
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+pip install "transformers==4.49.0"                    # PHẢI pin: 5.x incompatible với torch 2.6
+pip install "accelerate>=0.26.0"                      # bắt buộc khi dùng HuggingFace Trainer
+
+# HuggingFace token (cần để tải LayoutLMv3 weights)
+export HF_TOKEN=$(grep HF_TOKEN_geminipro /workspace/.env | cut -d= -f2)
+# Hoặc set thủ công: export HF_TOKEN=hf_xxxx
+
+# (chỉ khi chạy VLM LOCAL) thêm: pip install qwen-vl-utils
 ```
 
 ## 1. Dữ liệu
@@ -19,7 +36,11 @@ pip install -r requirements.txt                       # core (no torch) ~2GB
 # 1a. SROIE thật (626 receipt scan) — clone mirror rồi ingest sang tokens+gold
 GIT_LFS_SKIP_SMUDGE=1 git clone --depth 1 https://github.com/zzzDavid/ICDAR-2019-SROIE \
     $DOCAI_WORKSPACE/sroie_src
-python scripts/prepare_sroie.py --n-test 80           # -> $WS/data/sroie/{train,test}
+# Chỉ định --src và --out rõ ràng (không hardcode /data/nvidia-ai-workspace)
+python scripts/prepare_sroie.py \
+    --src $DOCAI_WORKSPACE/sroie_src/data \
+    --out $DOCAI_WORKSPACE/data/sroie \
+    --n-test 80                                        # -> $DOCAI_WORKSPACE/data/sroie/{train,test}
 # 1b. Synthetic receipts (EN + tiếng Việt, 5 field, multilingual)
 python -c "import os;from docai.synth import generate;generate(os.environ['DOCAI_WORKSPACE']+'/data/receipts',120,42)"
 # 1c. Multi-document synthetic: statements (easy train + HARD train/test) + payment orders
@@ -41,7 +62,12 @@ python training/train_doctype.py \
   --receipts $DOCAI_WORKSPACE/data/sroie/train $DOCAI_WORKSPACE/data/receipts \
   --statements $DOCAI_WORKSPACE/data/statements $DOCAI_WORKSPACE/data/statements_hard \
   --payment-orders $DOCAI_WORKSPACE/data/payment_orders --version v3
-python scripts/eval_multidoc.py --limit 30          # HARD statements -> docs/logs/multidoc_*.md
+# eval_multidoc.py cần chỉ định rõ từng tập test (không đọc env hardcoded)
+python scripts/eval_multidoc.py \
+  --statements $DOCAI_WORKSPACE/data/statements_test_hard \
+  --receipts $DOCAI_WORKSPACE/data/sroie/test \
+  --payment-orders $DOCAI_WORKSPACE/data/payment_orders_test \
+  --limit 30                                         # HARD statements -> docs/logs/multidoc_*.md
 ```
 Auto-routes: receipt → sklearn KIE; bank_statement → header KIE + **table parsing**
 (`docai/statement.py`); payment_order → anchor KV (`docai/kv.py`). Output JSON has
@@ -55,17 +81,49 @@ python -m mlops.pipeline --run-id repro --version v4
 # hoặc trực tiếp (train kết hợp SROIE thật + synthetic; sklearn calibrated):
 python training/train_kie.py --data $DOCAI_WORKSPACE/data/sroie/train $DOCAI_WORKSPACE/data/receipts --version v4 --seed 42
 ```
-Sinh `$WS/models/kie/v4/{model.joblib,metrics.json}` + đăng ký vào `$WS/models/registry.yaml`
+Sinh `$DOCAI_WORKSPACE/models/kie/v4/{model.joblib,metrics.json}` + đăng ký vào `$DOCAI_WORKSPACE/models/registry.yaml`
 (stage `staging`→`production`, kèm lineage). Inference-first: chỉ train KIE classifier nhẹ; KHÔNG train OCR/VLM.
+
+### 2b. Fine-tune LayoutLMv3 (BIO token classification cho merchant_name)
+```bash
+# Cần torch + transformers đã cài ở bước 0; RTX 3090 ~4 phút (CPU ~30+ phút)
+python training/train_layoutlmv3.py --epochs 5 --batch 4
+# -> $DOCAI_WORKSPACE/models/layoutlmv3/{config.json, pytorch_model.bin, metrics.json}
+# Val F1 ~0.91 (box-file tokens); test ANLS merchant ~0.71 (OCR tokens, xem ADR-9 về train/infer gap)
+```
+**Lưu ý train/infer gap:** SROIE training dùng ground-truth box annotations (token-per-word,
+precise bbox); inference dùng RapidOCR (line-grouped tokens, pixel bbox). Bbox phải được
+normalize theo W/H ảnh thật (không clip cứng 1000). Xem `docs/debug-workflows.md` để biết chi tiết.
 
 ## 3. Chạy service + smoke test
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 curl -s localhost:8000/health
+
 IMG=$DOCAI_WORKSPACE/data/sroie/test/images/$(ls $DOCAI_WORKSPACE/data/sroie/test/images | head -1)
-curl -s -F file=@$IMG localhost:8000/documents/extract | jq   # fields{value,confidence}, route, model_versions, needs_human_review
-curl -s -F "files=@$IMG" localhost:8000/batch_jobs | jq        # async batch + summary
-curl -s localhost:8000/metrics | grep -E 'documents_processed|vlm_fallback|human_review'
+
+# v1 API endpoints
+# Upload + idempotency key
+curl -s -X POST -F "file=@$IMG" -H "Idempotency-Key: test-001" \
+    localhost:8000/v1/documents | jq
+# Tạo extraction job
+curl -s -X POST -H "Content-Type: application/json" \
+    -d '{"document_id": "<id từ bước trên>"}' \
+    localhost:8000/v1/extraction_jobs | jq
+# Human feedback / correction (tạo training data loop)
+curl -s -X POST -H "Content-Type: application/json" \
+    -d '{"merchant_name": "ABC MART", "total_amount": "12.50"}' \
+    localhost:8000/v1/documents/<id>/feedback | jq
+
+# Legacy endpoint (vẫn hoạt động)
+curl -s -F "file=@$IMG" localhost:8000/documents/extract | jq
+curl -s -F "files=@$IMG" localhost:8000/batch_jobs | jq
+
+# Kiểm tra metrics (4 nhóm: system, model-quality, business-safety, drift)
+curl -s localhost:8000/metrics | grep -E 'documents_processed|vlm_fallback|amount_reconciliation_fail|human_feedback|document_type_total'
+
+# Response có X-Latency-Ms header + request_id trong body
+curl -v -F "file=@$IMG" localhost:8000/v1/documents 2>&1 | grep -E 'X-Latency|request_id'
 ```
 
 ## 4. Đánh giá (data thật + metric mạnh)
@@ -73,9 +131,22 @@ curl -s localhost:8000/metrics | grep -E 'documents_processed|vlm_fallback|human
 # 4a. Benchmark SROIE clean: F1 + exact + ANLS + CER + eval-gate (SROIE macro ~0.43 -> dùng thr thấp)
 python scripts/run_benchmark.py --data $DOCAI_WORKSPACE/data/sroie/test --out docs/logs --f1-threshold 0.2
 echo "gate exit=$?"     # !=0 nếu macro-F1 < threshold (cổng CI)
-# 4b. Robustness curve theo từng degradation (tối/mờ/nghiêng/nhiễu/rách/...)
+
+# 4b. So sánh 3 model (rule / logistic-KIE / LayoutLMv3) trên SROIE test
+python scripts/compare_models.py --limit 80 --out docs/logs
+# -> docs/logs/model_comparison_*.md (merchant ANLS / date F1 / total F1 per model)
+
+# 4c. Robustness curve theo từng degradation (tối/mờ/nghiêng/nhiễu/rách/...)
 python scripts/eval_robustness.py --data $DOCAI_WORKSPACE/data/sroie/test --limit 30 --severity 0.6
 # -> docs/logs/robustness_*.md  (CER/ANLS/ECE/needs_review per degradation)
+
+# 4d. Load test (batch 1/5/10 docs, 3 rounds — bottleneck analysis)
+# Chạy sau khi đã start uvicorn (bước 3)
+python scripts/load_test.py \
+    --url http://localhost:8000 \
+    --img-dir $DOCAI_WORKSPACE/data/sroie/test/images
+# Kết quả tham khảo: batch=1 p50=2.71s 22docs/min, batch=5 p50=12.1s 25docs/min, batch=10 p50=26s 23docs/min
+# Throughput plateau ~22-25 docs/min bất kể batch size -> bottleneck là CPU OCR (rapidocr single-thread)
 ```
 
 ## 5. VLM hard-case fallback (3 cách — xem `docs/vlm-deployment.md`)
@@ -102,9 +173,20 @@ python -m mlops.data_validation $DOCAI_WORKSPACE/data/sroie/train/labels.json
 ```
 CI (`.github/workflows/ci.yml`): ruff → pytest → train → eval-gate.
 
-## 7. Production (swap-by-config, không sửa code) — artifact
+## 7. Production (swap-by-config, không sửa code) — artifact + local stack
+### Local stack (runnable ngay):
+```bash
+# Stack: api + redis (healthcheck) + minio (healthcheck) + prometheus + grafana (auto-provisioned datasource)
+cd deploy && docker compose up
+# Grafana: http://localhost:3000 (admin/admin) — datasource Prometheus đã tự provision
+# Prometheus: http://localhost:9090
+# MinIO: http://localhost:9001 (minioadmin/minioadmin)
+# KServe / Triton / vLLM KHÔNG có trong stack này (cloud-only targets)
+```
+
+### Cloud config (swap-by-config):
 - `configs/app.yaml`: `queue.backend=redis`, `storage.backend=minio`, `serving.ocr_via=triton`, `vlm.mode=remote_gpu`.
-- `deploy/`: `docker-compose.yml` (redis+minio+triton+vllm+prometheus), `kserve.yaml` (autoscale/scale-to-zero), `hpa.yaml`, `modal_vlm.py` (đang chạy thật).
+- `deploy/`: `kserve.yaml` (autoscale/scale-to-zero), `hpa.yaml`, `modal_vlm.py` (đang chạy thật).
 - `mlops/kfp_pipeline.py` (Kubeflow), `monitoring/alerts.yaml`. Vận hành/DR: `docs/runbook-dr.md`.
 
 ## 8. Artifacts đã publish (backup)
@@ -116,6 +198,16 @@ CI (`.github/workflows/ci.yml`): ruff → pytest → train → eval-gate.
 - SROIE thật KHÔNG commit (tải lại bằng bước 1a; là dataset public).
 
 ## 9. Pin phiên bản
-`requirements.txt` (core). VLM local: `transformers==4.49.0` + torch/torchvision khớp nhau
-(driver cũ → dùng CPU; xem `docs/lessons-learned.md`). Model version + lineage trong `registry.yaml`
-và nhúng `model_versions` trong mỗi output JSON.
+`requirements.txt` (core). LayoutLMv3 + VLM local: `transformers==4.49.0` + torch/torchvision khớp nhau.
+**Quan trọng:** transformers 5.x incompatible với torch 2.6 (float8_e8m0fnu type chưa tồn tại) —
+luôn pin `transformers==4.49.0` khi cài torch specific version. Xem `docs/debug-workflows.md`.
+Model version + lineage trong `registry.yaml` và nhúng `model_versions` trong mỗi output JSON.
+
+## 10. Lưu ý disk
+- conda env `docai` (không có torch): ~1.5GB
+- torch CUDA (cu121 wheels): ~8GB
+- torchvision: ~500MB
+- transformers + accelerate + model weights (LayoutLMv3-base): ~2GB
+- **Tổng thực tế: ~12GB** (ước tính ban đầu ~2GB là sai — không tính CUDA wheels)
+- SROIE raw scans: ~1GB thêm
+- Cần ít nhất **15GB trống** trên partition chứa conda env trước khi bắt đầu.

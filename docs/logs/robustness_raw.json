@@ -5,197 +5,197 @@
     "clean": {
       "macro_f1": 0.4111,
       "field_f1": {
-        "merchant_name": 0.0333,
+        "merchant_name": 0.0667,
+        "date": 0.7667,
+        "total_amount": 0.4
+      },
+      "cer": 0.4752,
+      "anls": 0.5166,
+      "needs_review_rate": 0.567,
+      "fallback_rate": 0.0,
+      "mean_conf": 0.783,
+      "ece": 0.3715,
+      "latency_p50_ms": 1137.7
+    },
+    "dark": {
+      "macro_f1": 0.4111,
+      "field_f1": {
+        "merchant_name": 0.0667,
+        "date": 0.8,
+        "total_amount": 0.3667
+      },
+      "cer": 0.4649,
+      "anls": 0.5316,
+      "needs_review_rate": 0.467,
+      "fallback_rate": 0.0,
+      "mean_conf": 0.793,
+      "ece": 0.382,
+      "latency_p50_ms": 1022.9
+    },
+    "low_contrast": {
+      "macro_f1": 0.4222,
+      "field_f1": {
+        "merchant_name": 0.0667,
         "date": 0.7667,
         "total_amount": 0.4333
       },
-      "cer": 0.513,
-      "anls": 0.4785,
-      "needs_review_rate": 0.033,
+      "cer": 0.5396,
+      "anls": 0.5133,
+      "needs_review_rate": 0.467,
       "fallback_rate": 0.0,
-      "mean_conf": 0.844,
-      "ece": 0.4328,
-      "latency_p50_ms": 2140.4
-    },
-    "dark": {
-      "macro_f1": 0.4333,
-      "field_f1": {
-        "merchant_name": 0.0333,
-        "date": 0.7667,
-        "total_amount": 0.5
-      },
-      "cer": 0.4962,
-      "anls": 0.4956,
-      "needs_review_rate": 0.033,
-      "fallback_rate": 0.0,
-      "mean_conf": 0.848,
-      "ece": 0.4148,
-      "latency_p50_ms": 2065.4
-    },
-    "low_contrast": {
-      "macro_f1": 0.3778,
-      "field_f1": {
-        "merchant_name": 0.0667,
-        "date": 0.7,
-        "total_amount": 0.3667
-      },
-      "cer": 0.4908,
-      "anls": 0.4972,
-      "needs_review_rate": 0.067,
-      "fallback_rate": 0.0,
-      "mean_conf": 0.847,
-      "ece": 0.4691,
-      "latency_p50_ms": 2021.6
+      "mean_conf": 0.784,
+      "ece": 0.3616,
+      "latency_p50_ms": 1180.9
     },
     "blur": {
-      "macro_f1": 0.345,
+      "macro_f1": 0.4567,
       "field_f1": {
         "merchant_name": 0.0333,
-        "date": 0.7018,
-        "total_amount": 0.3
+        "date": 0.7368,
+        "total_amount": 0.6
       },
-      "cer": 0.5529,
-      "anls": 0.4371,
+      "cer": 0.4382,
+      "anls": 0.5424,
       "needs_review_rate": 1.0,
       "fallback_rate": 0.0,
-      "mean_conf": 0.823,
-      "ece": 0.4898,
-      "latency_p50_ms": 1041.6
+      "mean_conf": 0.766,
+      "ece": 0.3213,
+      "latency_p50_ms": 1125.4
     },
     "motion_blur": {
-      "macro_f1": 0.0148,
+      "macro_f1": 0.0267,
       "field_f1": {
         "merchant_name": 0.0,
         "date": 0.0,
-        "total_amount": 0.0444
+        "total_amount": 0.08
       },
-      "cer": 0.9506,
-      "anls": 0.0501,
+      "cer": 0.9503,
+      "anls": 0.0489,
       "needs_review_rate": 1.0,
       "fallback_rate": 0.0,
-      "mean_conf": 0.296,
-      "ece": 0.2851,
-      "latency_p50_ms": 856.1
+      "mean_conf": 0.39,
+      "ece": 0.3678,
+      "latency_p50_ms": 653.4
     },
     "rotate": {
-      "macro_f1": 0.3597,
+      "macro_f1": 0.3222,
       "field_f1": {
         "merchant_name": 0.0,
-        "date": 0.7458,
-        "total_amount": 0.3333
+        "date": 0.7,
+        "total_amount": 0.2667
       },
-      "cer": 1.1778,
-      "anls": 0.438,
-      "needs_review_rate": 0.033,
+      "cer": 1.3229,
+      "anls": 0.4245,
+      "needs_review_rate": 0.1,
       "fallback_rate": 0.0,
-      "mean_conf": 0.866,
-      "ece": 0.51,
-      "latency_p50_ms": 1082.5
+      "mean_conf": 0.85,
+      "ece": 0.5275,
+      "latency_p50_ms": 1208.5
     },
     "perspective": {
-      "macro_f1": 0.3333,
+      "macro_f1": 0.3556,
       "field_f1": {
         "merchant_name": 0.0,
         "date": 0.7667,
-        "total_amount": 0.2333
+        "total_amount": 0.3
       },
-      "cer": 1.3855,
-      "anls": 0.4128,
-      "needs_review_rate": 0.033,
+      "cer": 1.4153,
+      "anls": 0.4347,
+      "needs_review_rate": 0.133,
       "fallback_rate": 0.0,
-      "mean_conf": 0.878,
-      "ece": 0.5449,
-      "latency_p50_ms": 1054.7
+      "mean_conf": 0.86,
+      "ece": 0.5043,
+      "latency_p50_ms": 1157.8
     },
     "low_res": {
-      "macro_f1": 0.3151,
+      "macro_f1": 0.3778,
       "field_f1": {
         "merchant_name": 0.0333,
-        "date": 0.7119,
-        "total_amount": 0.2
-      },
-      "cer": 0.5388,
-      "anls": 0.4431,
-      "needs_review_rate": 0.033,
-      "fallback_rate": 0.0,
-      "mean_conf": 0.84,
-      "ece": 0.5291,
-      "latency_p50_ms": 1037.6
-    },
-    "jpeg": {
-      "macro_f1": 0.393,
-      "field_f1": {
-        "merchant_name": 0.0333,
-        "date": 0.7458,
-        "total_amount": 0.4
-      },
-      "cer": 0.5467,
-      "anls": 0.4845,
-      "needs_review_rate": 0.1,
-      "fallback_rate": 0.0,
-      "mean_conf": 0.841,
-      "ece": 0.4516,
-      "latency_p50_ms": 1176.0
-    },
-    "noise": {
-      "macro_f1": 0.3646,
-      "field_f1": {
-        "merchant_name": 0.0333,
-        "date": 0.7273,
-        "total_amount": 0.3333
-      },
-      "cer": 0.574,
-      "anls": 0.4232,
-      "needs_review_rate": 0.167,
-      "fallback_rate": 0.0,
-      "mean_conf": 0.794,
-      "ece": 0.4644,
-      "latency_p50_ms": 1089.8
-    },
-    "tear": {
-      "macro_f1": 0.3636,
-      "field_f1": {
-        "merchant_name": 0.0,
-        "date": 0.7241,
+        "date": 0.7333,
         "total_amount": 0.3667
       },
-      "cer": 0.565,
-      "anls": 0.4156,
-      "needs_review_rate": 0.067,
+      "cer": 0.4976,
+      "anls": 0.4925,
+      "needs_review_rate": 0.333,
       "fallback_rate": 0.0,
-      "mean_conf": 0.827,
-      "ece": 0.4711,
-      "latency_p50_ms": 1040.1
+      "mean_conf": 0.799,
+      "ece": 0.4208,
+      "latency_p50_ms": 1308.4
     },
-    "fade": {
-      "macro_f1": 0.4599,
+    "jpeg": {
+      "macro_f1": 0.4556,
       "field_f1": {
-        "merchant_name": 0.0333,
-        "date": 0.7797,
-        "total_amount": 0.5667
+        "merchant_name": 0.0667,
+        "date": 0.7667,
+        "total_amount": 0.5333
       },
-      "cer": 0.4773,
-      "anls": 0.503,
-      "needs_review_rate": 0.067,
+      "cer": 0.4265,
+      "anls": 0.5766,
+      "needs_review_rate": 0.533,
       "fallback_rate": 0.0,
-      "mean_conf": 0.835,
-      "ece": 0.3798,
-      "latency_p50_ms": 1035.2
+      "mean_conf": 0.795,
+      "ece": 0.3395,
+      "latency_p50_ms": 1150.4
     },
-    "mixed_hard": {
-      "macro_f1": 0.2819,
+    "noise": {
+      "macro_f1": 0.3784,
       "field_f1": {
-        "merchant_name": 0.0333,
-        "date": 0.6429,
-        "total_amount": 0.1695
+        "merchant_name": 0.1,
+        "date": 0.7018,
+        "total_amount": 0.3333
       },
-      "cer": 1.2485,
-      "anls": 0.3869,
+      "cer": 0.5327,
+      "anls": 0.4984,
       "needs_review_rate": 0.433,
       "fallback_rate": 0.0,
-      "mean_conf": 0.818,
-      "ece": 0.5514,
-      "latency_p50_ms": 997.7
+      "mean_conf": 0.76,
+      "ece": 0.3999,
+      "latency_p50_ms": 1130.2
+    },
+    "tear": {
+      "macro_f1": 0.3969,
+      "field_f1": {
+        "merchant_name": 0.0333,
+        "date": 0.7241,
+        "total_amount": 0.4333
+      },
+      "cer": 0.4891,
+      "anls": 0.5043,
+      "needs_review_rate": 0.667,
+      "fallback_rate": 0.0,
+      "mean_conf": 0.761,
+      "ece": 0.372,
+      "latency_p50_ms": 1305.2
+    },
+    "fade": {
+      "macro_f1": 0.4334,
+      "field_f1": {
+        "merchant_name": 0.0667,
+        "date": 0.7667,
+        "total_amount": 0.4667
+      },
+      "cer": 0.5216,
+      "anls": 0.5269,
+      "needs_review_rate": 0.467,
+      "fallback_rate": 0.0,
+      "mean_conf": 0.788,
+      "ece": 0.3544,
+      "latency_p50_ms": 1115.7
+    },
+    "mixed_hard": {
+      "macro_f1": 0.3067,
+      "field_f1": {
+        "merchant_name": 0.0333,
+        "date": 0.5818,
+        "total_amount": 0.3051
+      },
+      "cer": 1.4586,
+      "anls": 0.4241,
+      "needs_review_rate": 0.4,
+      "fallback_rate": 0.0,
+      "mean_conf": 0.797,
+      "ece": 0.5361,
+      "latency_p50_ms": 1170.4
     }
   }
 }

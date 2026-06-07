@@ -78,3 +78,52 @@ Khi 1 doc sai/lỗi, **cô lập theo stage**, đừng đoán. Mỗi stage emit 
 ### eval-gate fail trong CI nhưng local pass
 - **Chẩn đoán:** so dataset/seed/threshold giữa CI và local; CI có tải đúng subset không.
 - **Sửa:** pin `--f1-threshold`, commit subset nhỏ cố định cho CI (hoặc cache), log F1 thực vào artifact CI.
+
+---
+
+## LayoutLMv3 / transformers — lỗi đã gặp
+
+### ĐÃ GẶP: transformers 5.x incompatible với torch 2.6 (float8_e8m0fnu)
+- **Triệu chứng:** `ModuleNotFoundError` hoặc `AttributeError` khi import `AutoProcessor` từ transformers; stack trace đề cập `torch.float8_e8m0fnu`.
+- **Chẩn đoán:** transformers ≥5.0 dùng `torch.float8_e8m0fnu` type — type này chưa tồn tại trong torch 2.6. Kiểm tra: `python -c "import torch; print(torch.__version__)"` + `pip show transformers`.
+- **Sửa:** `pip install "transformers==4.49.0"` (downgrade về phiên bản tương thích với torch 2.6).
+- **Phòng ngừa:** khi install torch specific version (đặc biệt torch 2.x), LUÔN pin transformers version tương thích ngay cùng lúc. Không để pip resolve transformers tự động — nó sẽ lấy latest 5.x và break. Rule: `pip install torch==2.6.x transformers==4.49.0 torchvision` trong một lệnh.
+
+### ĐÃ GẶP: LayoutLMv3 train/infer gap — OCR tokens ≠ box-file tokens
+- **Triệu chứng:** validation F1 trên SROIE box-file tokens đạt ~0.91, nhưng test F1 với OCR tokens (RapidOCR) thấp hơn nhiều (date/total F1 < 0.2, chỉ merchant_name còn tốt).
+- **Chẩn đoán:** SROIE training dùng ground-truth box annotations — mỗi token là một từ riêng biệt, bbox chính xác pixel từ annotation file. RapidOCR trả về line-grouped tokens (nhiều từ gộp thành 1 token) với pixel bbox từ detector. Hai loại input khác nhau về (1) độ granularity token và (2) bbox coordinate space.
+- **Sửa:**
+  1. Normalize bbox theo W/H ảnh thật: `x_norm = int(x / img_w * 1000)` — không clip cứng 1000 khi ảnh không vuông.
+  2. Apply `norm_field()` cho output LayoutLMv3 để comparable với gold (cùng normalization function dùng trong eval logistic).
+  3. Khi đánh giá: luôn chạy inference qua OCR pipeline thật, không chỉ qua box-file loader.
+- **Phòng ngừa:** luôn có một test set "OCR-tokenized" song song với "box-tokenized". Nếu 2 số khác nhiều → có train/infer mismatch. Kiểm tra bằng cách in tokens thật từ cả 2 source và so sánh.
+
+### ĐÃ GẶP: norm_money() nhận float thay vì str
+- **Triệu chứng:** `TypeError: expected string or bytes-like object, got float` trong DataLoader worker khi train LayoutLMv3; traceback trỏ vào `norm_money()` hoặc `re.sub()`.
+- **Nguyên nhân:** SROIE gold labels có `total_amount` là float (ví dụ `10.4` từ JSON parse) thay vì string. `norm_money()` gọi `re.sub()` trên input — regex không nhận float.
+- **Sửa:** trong data loader, convert gold value trước khi normalize: `total_val = str(total_raw) if total_raw is not None else ""`. Hoặc thêm type guard đầu hàm: `def norm_money(v): if not isinstance(v, str): v = str(v)`.
+- **Phòng ngừa:** validate gold schema types trước khi feed vào model. Thêm unit test: `norm_money(10.4)` phải không raise. SROIE JSON có thể có mixed types (float/str) tùy field.
+
+### ĐÃ GẶP: accelerate không được cài khi dùng HuggingFace Trainer
+- **Triệu chứng:** `ImportError: Using the Trainer with PyTorch requires accelerate>=0.26.0: Please run pip install accelerate`.
+- **Nguyên nhân:** `pip install transformers` không kéo `accelerate` theo mặc định dù Trainer phụ thuộc vào nó.
+- **Sửa:** `pip install "accelerate>=0.26.0"` hoặc dùng extra: `pip install "transformers[torch]"` (kéo accelerate + torch đúng version).
+- **Phòng ngừa:** khi setup môi trường cho LayoutLMv3/bất kỳ HF Trainer workflow nào, luôn install `accelerate` ngay từ đầu cùng transformers.
+
+### Tối ưu LayoutLMv3 inference (kế hoạch — chưa implement)
+- **Tình trạng hiện tại:** inference qua HuggingFace Trainer/pipeline, ~41ms/doc GPU (RTX 3090), ~800ms/doc CPU.
+- **Bước 1 — ONNX export:**
+  ```bash
+  optimum-cli export onnx --model microsoft/layoutlmv3-base \
+      --task token-classification \
+      $DOCAI_WORKSPACE/models/layoutlmv3_onnx/
+  ```
+- **Bước 2 — INT8 quantization (CPU inference):**
+  ```bash
+  optimum-cli onnxruntime quantize \
+      --onnx_model $DOCAI_WORKSPACE/models/layoutlmv3_onnx/ \
+      --output $DOCAI_WORKSPACE/models/layoutlmv3_onnx_int8/ \
+      --avx512
+  ```
+- **Kỳ vọng:** CPU latency ~800ms → ~200–300ms sau INT8 quantization. GPU latency đã đủ nhanh (41ms không phải bottleneck — OCR mới là bottleneck thật ở ~1.5–2s).
+- **Lưu ý khi export:** LayoutLMv3 cần image + bbox + input_ids — ONNX export phải khai báo đủ dynamic axes cho cả 3 inputs.

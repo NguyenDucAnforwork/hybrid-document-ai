@@ -18,9 +18,9 @@ pipeline, serving and operations. Here the model is **1 of 3 layers**:
 
 | Layer | Implemented |
 |---|---|
-| **Processing** (multi-model) | Quality → upscale → OCR (RapidOCR/PP-OCR ONNX) → **KIE**: layout line-grouping → feature vector → **calibrated scikit-learn field classifier** → **confidence router** → **real VLM fallback (Qwen2.5-VL) on hard cases** |
-| **Serving** | **dynamic micro-batcher** (runnable) · stage queues · CPU/VRAM caps · Triton + vLLM + **KServe** (autoscale/scale-to-zero) artifacts |
-| **Deployment + MLOps** | FastAPI · Docker/Compose · Prometheus + drift + **alert rules** · **staged model registry + lineage** · **training-pipeline DAG** (KFP) · **eval-as-CI-gate** · **chaos engineering** · DR runbook |
+| **Processing** (multi-model) | Quality → upscale → OCR (RapidOCR/PP-OCR ONNX) → **KIE**: layout line-grouping → feature vector → **calibrated scikit-learn field classifier** + **LayoutLMv3-base fine-tuned** (BIO token classification, SROIE) → **hybrid confidence router** → **real VLM fallback (Qwen2.5-VL) on hard cases** |
+| **Serving** | **dynamic micro-batcher** (runnable) · stage queues · CPU/VRAM caps · v1 REST API (idempotency key, feedback loop, request_id) · Triton + vLLM + **KServe** (autoscale/scale-to-zero) artifacts |
+| **Deployment + MLOps** | FastAPI · **runnable Docker Compose** (api + redis + minio + prometheus + grafana) · Prometheus + drift + **alert rules** · **staged model registry + lineage** · **training-pipeline DAG** (KFP) · **eval-as-CI-gate** · **chaos engineering** · DR runbook |
 
 **KIE is a learned multi-model stage, not regex.** Candidate-gen (regex/keyword/layout-graph)
 → features → a **calibrated** sklearn classifier (trained on real SROIE + synthetic),
@@ -89,6 +89,24 @@ fail → it needs a sequence-labeling model (LayoutLMv3). It is **optional** (no
 field) and routes to human review. The financial fields that matter for reconciliation —
 **date and total_amount — work** (ANLS 0.84 / 0.60).
 
+### KIE model comparison (SROIE test n=80)
+
+Fine-tuned **LayoutLMv3-base** (BIO token classification, `training/train_layoutlmv3.py`,
+~4 min on RTX 3090) — compared against rule-based and logistic-KIE baselines:
+
+| field | metric | rule | logistic-KIE | **LayoutLMv3** | winner |
+|---|---|---|---|---|---|
+| merchant_name | ANLS | 0.55 | 0.10 | **0.71** | LayoutLMv3 |
+| date | F1 | 0.80 | **0.775** | 0.19 | logistic |
+| total_amount | F1 | 0.00 | **0.49** | 0.04 | logistic |
+| full pipeline | p50 latency | ~2s | ~2s | ~2–3s | — |
+
+**Kết luận: hybrid routing là production call đúng.** Không phải "LayoutLMv3 beats all" —
+mỗi model có điểm mạnh khác nhau:
+- **merchant_name**: LayoutLMv3 thắng rõ (ANLS 0.10→0.71) nhờ multimodal layout context — tên công ty in to/nhiều dòng, chính xác là bài toán mà token-sequence + layout embedding giải được.
+- **date / total_amount**: logistic-KIE vẫn tốt hơn vì OCR tokens từ RapidOCR (line-grouped, pixel bbox) khác với SROIE ground-truth box annotations (token-per-word, precise bbox) — train/infer gap khiến LayoutLMv3 suy giảm ở 2 field này.
+- **Production router**: dùng logistic cho date/total (nhanh, chính xác), LayoutLMv3 cho merchant_name (multimodal layout). Generate bởi `scripts/compare_models.py --limit 80 --out docs/logs`.
+
 ### Robustness curve (real SROIE, n=30, severity 0.6) — `docs/logs/robustness_*.md`
 | degradation | macro-F1 | ANLS | CER | needs_review | ECE |
 |---|---|---|---|---|---|
@@ -139,17 +157,72 @@ misses). Same wiring works on an RTX 1650. Alternatives (managed Qwen API, local
 
 ## Quickstart
 ```bash
+# 0. Môi trường — dùng conda (torch CUDA wheels ~11GB, cần /data)
+/opt/miniforge3/bin/conda create -n docai python=3.11 -y
+conda activate docai
 pip install -r requirements.txt
-export DOCAI_WORKSPACE=/data/nvidia-ai-workspace          # heavy artifacts off /home
-python scripts/prepare_sroie.py                            # real SROIE -> tokens+gold
-python -m mlops.pipeline --version v4                      # DAG: validate->train->eval-gate->register
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+pip install "transformers==4.49.0" "accelerate>=0.26.0"  # pin version, tránh float8 incompatibility
+
+export DOCAI_WORKSPACE=/workspace/docai-ws               # đổi nếu máy khác
+export HF_TOKEN=$(grep HF_TOKEN_geminipro /workspace/.env | cut -d= -f2)
+
+# 1. Data SROIE thật
+python scripts/prepare_sroie.py \
+    --src $DOCAI_WORKSPACE/sroie_src/data \
+    --out $DOCAI_WORKSPACE/data/sroie
+
+# 2. Train KIE (sklearn logistic + MLOps DAG)
+python -m mlops.pipeline --version v4
+
+# 2b. Fine-tune LayoutLMv3 (~4 min RTX 3090)
+python training/train_layoutlmv3.py --epochs 5 --batch 4
+
+# 3. So sánh 3 model (rule / logistic / LayoutLMv3)
+python scripts/compare_models.py --limit 80 --out docs/logs
+
+# 4. Benchmark + robustness curve
 python scripts/run_benchmark.py --data $DOCAI_WORKSPACE/data/sroie/test --f1-threshold 0.2
-python scripts/eval_robustness.py --data $DOCAI_WORKSPACE/data/sroie/test --limit 30  # robustness curve
-uvicorn app.main:app --port 8000                           # API
-python -m mlops.chaos                                      # resilience
+python scripts/eval_robustness.py --data $DOCAI_WORKSPACE/data/sroie/test --limit 30
+
+# 5. API (v1 endpoints)
+uvicorn app.main:app --port 8000
+# POST /v1/documents  (upload + idempotency key)
+# POST /v1/extraction_jobs
+# POST /v1/documents/{id}/feedback  (human correction loop)
+
+# 6. Load test (batch 1/5/10 docs, 3 rounds)
+python scripts/load_test.py \
+    --url http://localhost:8000 \
+    --img-dir $DOCAI_WORKSPACE/data/sroie/test/images
+
+# 7. Chaos + CI
+python -m mlops.chaos
 ```
+
+### Deploy (local stack — runnable)
+```bash
+# Stack: api + redis + minio + prometheus + grafana (auto-provisioned datasource)
+cd deploy && docker compose up
+# KServe / Triton / vLLM là cloud-only targets, không có trong stack này
+```
+
 Full walkthrough: **`test.ipynb`** · reproduce: `docs/reproduce.md`.
 
+## API v1
+| Endpoint | Mô tả |
+|---|---|
+| `POST /v1/documents` | Upload ảnh + idempotency key; trả `document_id` |
+| `POST /v1/extraction_jobs` | Tạo extraction job từ `document_id` đã upload |
+| `POST /v1/documents/{id}/feedback` | Human correction → training data loop |
+| `GET /metrics` | Prometheus metrics (system, model-quality, business-safety, drift) |
+| `POST /batch_jobs` | Async batch (5–10 docs, per-doc state machine) |
+
+Response có `X-Latency-Ms` header + `request_id` trong JSON. Mọi request được log JSON structured.
+
 ## Constraints honored
-≤ 15GB disk (artifacts on `/data`; `/home` was full) · ≤ 4GB VRAM (VLM off-box: api/remote) ·
-no k8s on dev box (KServe/KFP/Triton are swap-by-config artifacts; live serving on HF Space).
+≤ 15GB disk (artifacts on `/data` hoặc `/workspace`; `/home` không để artifacts nặng) ·
+≤ 4GB VRAM (VLM off-box: api/remote; LayoutLMv3 inference 41ms/doc GPU) ·
+conda env `docai` Python 3.11 (torch CUDA wheels ~11GB thực tế, vượt ước tính ban đầu) ·
+RTX 3090 cho LayoutLMv3 fine-tune (~4 phút) ·
+no k8s on dev box (KServe/KFP/Triton là swap-by-config artifacts; live serving on HF Space).
