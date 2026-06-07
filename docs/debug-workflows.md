@@ -127,3 +127,20 @@ Khi 1 doc sai/lỗi, **cô lập theo stage**, đừng đoán. Mỗi stage emit 
   ```
 - **Kỳ vọng:** CPU latency ~800ms → ~200–300ms sau INT8 quantization. GPU latency đã đủ nhanh (41ms không phải bottleneck — OCR mới là bottleneck thật ở ~1.5–2s).
 - **Lưu ý khi export:** LayoutLMv3 cần image + bbox + input_ids — ONNX export phải khai báo đủ dynamic axes cho cả 3 inputs.
+
+### ĐÃ GẶP: PP-OCRv4 hallucinate chữ Hán trên ảnh rotate/low-res (CJK hallucination)
+- **Triệu chứng:** `merchant_name` trả về Unicode Hán tự (e.g. `"我物出门，#不处或更"`) khi OCR ảnh receipt Latin/Malay bị rotate hoặc low-resolution. Phát hiện khi test live trên `000.jpg` (SROIE). JSON response có `\uXXXX` escape sequences decode ra chữ Trung Quốc.
+- **Chẩn đoán:**
+  1. Kiểm tra `quality.issues` trong response — nếu có `"rotated_image"` + `"low_resolution"` → nghi ngờ hallucination.
+  2. Kiểm tra `skew_angle` trong response — nếu `abs(skew_angle) > 45` thì ảnh gần như lật 90°.
+  3. Confirm bằng cách decode field value: `python3 -c "print('field_value_here')"` — nếu ra chữ Hán mà context là tiếng Anh → hallucination.
+  4. Root cause: PP-OCRv4 train chủ yếu trên Chinese corpus → khi text Latin bị distort geometric → classify sai thành Chinese stroke patterns.
+- **Sửa (đã implement trong `docai/pipeline.py`):**
+  1. **`_deskew(img, angle)`**: Dùng `skew_angle` từ `QualityReport`, áp dụng `cv2.getRotationMatrix2D + warpAffine` trước `run_ocr()`. OCR nhận ảnh thẳng → không hallucinate.
+  2. **`_filter_cjk_hallucination(extracted, tokens)`**: Post-KIE guard — nếu corpus tokens không phải Chinese doc (tổng CJK ratio < 30%) mà field value có > 30% CJK chars → set `(None, 0.0)`, trigger human review.
+  3. **`QualityReport.skew_angle`**: Expose góc từ `check_quality()` (trước chỉ tính nội bộ không return).
+- **Phòng ngừa:**
+  - Luôn kiểm tra `quality.issues` và `skew_angle` khi field value trông bất thường.
+  - Test với ảnh rotate khi setup OCR pipeline mới. Bất kỳ PP-OCR-based engine nào đều có risk này.
+  - Khi thêm ngôn ngữ mới (Japanese, Korean): điều chỉnh CJK filter threshold hoặc dùng language detection (langdetect) thay vì heuristic ratio.
+- **Lưu ý giới hạn của fix:** deskew chỉ hiệu quả khi `skew_angle` estimate chính xác. Ảnh bị vừa blur vừa rotate nặng → angle estimate sai → vẫn cần CJK filter làm lớp backup. Ảnh blur + rotate vẫn có `needs_human_review=True` qua quality gate.

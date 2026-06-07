@@ -15,6 +15,7 @@ class QualityReport(BaseModel):
     is_dark: bool
     low_resolution: bool
     is_rotated: bool
+    skew_angle: float = 0.0
     quality_pass: bool
     issues: list[str] = Field(default_factory=list)
     action: Optional[str] = None

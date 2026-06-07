@@ -53,6 +53,45 @@ def _decode(image_bytes: bytes) -> np.ndarray:
     return img
 
 
+def _deskew(img: np.ndarray, angle: float) -> np.ndarray:
+    """Correct image skew before OCR. angle from minAreaRect convention."""
+    if abs(angle) < 0.5:
+        return img
+    h, w = img.shape[:2]
+    M = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1.0)
+    return cv2.warpAffine(img, M, (w, h),
+                          flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+
+def _cjk_ratio(text: str) -> float:
+    if not text:
+        return 0.0
+    cjk = sum(1 for c in text if '一' <= c <= '鿿' or '　' <= c <= '〿')
+    return cjk / len(text)
+
+
+def _filter_cjk_hallucination(extracted: dict, tokens: list[dict]) -> dict:
+    """Null out field values that are CJK hallucinations from PP-OCRv4.
+
+    PP-OCRv4 is primarily trained on Chinese text and can hallucinate CJK
+    characters when the input image is rotated or low-resolution Latin text.
+    If the overall OCR corpus is not a Chinese document (corpus CJK ratio < 0.3)
+    but a specific field value is predominantly CJK, it's a hallucination.
+    """
+    corpus = " ".join(t.get("text", "") for t in tokens)
+    if _cjk_ratio(corpus) > 0.3:
+        return extracted  # looks like a real Chinese document — don't filter
+
+    filtered = {}
+    for field, payload in extracted.items():
+        val, conf = payload
+        if val is not None and isinstance(val, str) and _cjk_ratio(val) > 0.3:
+            filtered[field] = (None, 0.0)  # hallucination → null, triggers human review
+        else:
+            filtered[field] = payload
+    return filtered
+
+
 def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
     t0 = time.perf_counter()
     img = _decode(image_bytes)
@@ -65,6 +104,10 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
     if min(h, w) < 720:
         scale = 720.0 / min(h, w)
         img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_CUBIC)
+
+    # Preprocess: correct skew before OCR — PP-OCRv4 hallucinates CJK on rotated Latin text.
+    if q.is_rotated:
+        img = _deskew(img, q.skew_angle)
 
     with metrics.stage_latency.labels("ocr").time():
         tokens = run_ocr(img)
@@ -93,6 +136,7 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
             extracted = kie.extract(tokens)
             kie_ver = kie.version
 
+    extracted = _filter_cjk_hallucination(extracted, tokens)
     needs_review, should_vlm, reasons = route_decision(extracted, dt.required)
     # Statement-specific trigger: if the parsed table fails balance reconciliation,
     # the rule parser got it wrong -> escalate to the VLM to re-read the table.

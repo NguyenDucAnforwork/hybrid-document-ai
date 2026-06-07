@@ -44,6 +44,7 @@ def check_quality(image_bgr: np.ndarray) -> QualityReport:
     quality_pass = not is_blurry
     return QualityReport(
         blur_score=round(blur, 2), is_blurry=is_blurry, is_dark=is_dark,
-        low_resolution=low_res, is_rotated=is_rotated, quality_pass=quality_pass,
+        low_resolution=low_res, is_rotated=is_rotated, skew_angle=round(skew, 2),
+        quality_pass=quality_pass,
         issues=issues, action=None if quality_pass else "request_reupload",
     )
