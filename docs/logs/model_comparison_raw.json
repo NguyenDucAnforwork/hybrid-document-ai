@@ -1,0 +1,59 @@
+{
+  "rule": {
+    "merchant_name": {
+      "f1": 0.1875,
+      "anls": 0.5463,
+      "cer": 0.5007
+    },
+    "date": {
+      "f1": 0.8,
+      "anls": 0.8813,
+      "cer": 0.1038
+    },
+    "total_amount": {
+      "f1": 0.0,
+      "anls": 0.0,
+      "cer": 2.7817
+    }
+  },
+  "logistic": {
+    "merchant_name": {
+      "f1": 0.0375,
+      "anls": 0.0997,
+      "cer": 0.8752
+    },
+    "date": {
+      "f1": 0.775,
+      "anls": 0.87,
+      "cer": 0.115
+    },
+    "total_amount": {
+      "f1": 0.4875,
+      "anls": 0.5396,
+      "cer": 0.4379
+    }
+  },
+  "layoutlmv3": {
+    "merchant_name": {
+      "f1": 0.2375,
+      "anls": 0.7148,
+      "cer": 0.2852
+    },
+    "date": {
+      "f1": 0.1875,
+      "anls": 0.1875,
+      "cer": 0.8125
+    },
+    "total_amount": {
+      "f1": 0.0375,
+      "anls": 0.0654,
+      "cer": 0.9292
+    }
+  },
+  "latency_ms": {
+    "rule": 1.5,
+    "logistic": 60.2,
+    "layoutlmv3": 41.4
+  },
+  "n": 80
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "batch_size": 1,
+    "rounds": 3,
+    "latency_p50_s": 2.713,
+    "latency_p95_s": 3.109,
+    "throughput_docs_per_min": 22.2
+  },
+  {
+    "batch_size": 5,
+    "rounds": 3,
+    "latency_p50_s": 12.116,
+    "latency_p95_s": 12.742,
+    "throughput_docs_per_min": 25.0
+  },
+  {
+    "batch_size": 10,
+    "rounds": 3,
+    "latency_p50_s": 25.995,
+    "latency_p95_s": 28.07,
+    "throughput_docs_per_min": 23.1
+  }
+]
