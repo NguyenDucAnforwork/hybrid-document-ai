@@ -46,10 +46,15 @@ def _normalize_txns(txns) -> list[dict]:
 
 
 def _decode(image_bytes: bytes) -> np.ndarray:
+    if not image_bytes:
+        raise ValueError("cannot decode image: empty bytes")
     arr = np.frombuffer(image_bytes, np.uint8)
-    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    try:
+        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    except cv2.error:
+        raise ValueError("cannot decode image: corrupted file")
     if img is None:
-        raise ValueError("cannot decode image")
+        raise ValueError("cannot decode image: unsupported format")
     return img
 
 
@@ -128,13 +133,35 @@ def _filter_cjk_hallucination(extracted: dict, tokens: list[dict]) -> dict:
 
 def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
     t0 = time.perf_counter()
-    img = _decode(image_bytes)
+    try:
+        img = _decode(image_bytes)
+    except ValueError as e:
+        from .schemas import QualityReport as _QR
+        from .config import ALL_FIELDS
+        dummy_q = _QR(blur_score=0, is_blurry=False, is_dark=False,
+                                low_resolution=False, is_rotated=False,
+                                quality_pass=False, issues=["decode_error"],
+                                action="request_reupload")
+        return DocumentResult(
+            document_id=doc_id, document_type="unknown", route="error",
+            fields={f: FieldValue() for f in ALL_FIELDS},
+            quality=dummy_q, needs_human_review=True,
+            model_versions={"ocr": "n/a", "kie": "n/a", "doctype": "n/a"},
+            error=str(e),
+        )
 
     q = check_quality(img)
     metrics.blur_observed.observe(q.blur_score)
 
-    # Preprocess: upscale small scans so OCR has enough resolution (real docs).
+    # Preprocess: cap oversized images to avoid multi-second latency spikes.
+    # Resize down to max 3000px on the longest side before any other processing.
     h, w = img.shape[:2]
+    if max(h, w) > 3000:
+        scale = 3000.0 / max(h, w)
+        img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+        h, w = img.shape[:2]
+
+    # Preprocess: upscale small scans so OCR has enough resolution (real docs).
     if min(h, w) < 720:
         scale = 720.0 / min(h, w)
         img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_CUBIC)
