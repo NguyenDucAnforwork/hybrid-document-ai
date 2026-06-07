@@ -147,6 +147,39 @@ python scripts/load_test.py \
     --img-dir $DOCAI_WORKSPACE/data/sroie/test/images
 # Kết quả tham khảo: batch=1 p50=2.71s 22docs/min, batch=5 p50=12.1s 25docs/min, batch=10 p50=26s 23docs/min
 # Throughput plateau ~22-25 docs/min bất kể batch size -> bottleneck là CPU OCR (rapidocr single-thread)
+
+# 4e. Go-live audit — kiểm tra SILENT_WRONG (wrong field + needs_review=False, critical failure)
+# Chạy TRỰC TIẾP (không qua uvicorn) để test code mới nhất:
+/home/dev/.conda/envs/docai/bin/python - << 'PYEOF'
+import os, sys, json
+os.environ["DOCAI_WORKSPACE"] = "/workspace/docai-ws"
+os.environ["DOCAI_VLM_MODE"] = "disabled"
+sys.path.insert(0, ".")
+from pathlib import Path
+from docai.pipeline import process_document
+
+labels = json.loads(Path(os.environ["DOCAI_WORKSPACE"] + "/data/sroie/test/labels.json").read_text())
+label_map = {r["image"]: r["gold"] for r in labels}
+img_dir = Path(os.environ["DOCAI_WORKSPACE"] + "/data/sroie/test/images")
+
+ok_date = ok_total = silent_wrong = n = 0
+for img_path in sorted(img_dir.glob("*.jpg"))[:30]:
+    gold = label_map.get(img_path.name, {})
+    doc = process_document(img_path.name, img_path.read_bytes())
+    pd = getattr(doc.fields.get("date"), "value", None)
+    pt = getattr(doc.fields.get("total_amount"), "value", None)
+    gd, gt = gold.get("date"), gold.get("total_amount")
+    em = lambda p, g: str(p or "").strip().lower() == str(g or "").strip().lower()
+    if em(pd, gd): ok_date += 1
+    if em(pt, gt): ok_total += 1
+    if not doc.needs_human_review and (not em(pd, gd) or not em(pt, gt)):
+        silent_wrong += 1
+        print(f"  SILENT_WRONG {img_path.name}: date={pd!r}(gold={gd!r}) total={pt!r}(gold={gt!r})")
+    n += 1
+
+print(f"\nn={n} date={ok_date/n:.1%} total={ok_total/n:.1%} SILENT_WRONG={silent_wrong}")
+# Kỳ vọng: date>=75%, total>=30%, SILENT_WRONG<=5, CJK=0
+PYEOF
 ```
 
 ## 5. VLM hard-case fallback (3 cách — xem `docs/vlm-deployment.md`)

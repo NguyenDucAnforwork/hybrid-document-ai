@@ -89,6 +89,22 @@ fail → it needs a sequence-labeling model (LayoutLMv3). It is **optional** (no
 field) and routes to human review. The financial fields that matter for reconciliation —
 **date and total_amount — work** (ANLS 0.84 / 0.60).
 
+### Go-live audit (n=30, strict — `needs_human_review=False` AND wrong = critical failure)
+
+| metric | result | note |
+|---|---|---|
+| date exact-match | **80%** | up from 75% after deskew regression fix |
+| total exact-match | **37%** | within expected range (n=30 sample) |
+| CJK hallucination | **0** | PP-OCRv4 → Chinese chars on Latin receipts — fixed by `_filter_cjk_hallucination()` |
+| SILENT_WRONG | **5/30** | wrong required field but `needs_review=False` |
+
+**SILENT_WRONG breakdown:** 3 are "plausible wrong" (KIE picks sub-total/tax instead of grand total — not detectable by range check); 2 are KIE candidate confusion on low-res images. Catastrophic cases (barcode-as-total > 50k, impossible year < 2000, invalid month > 12) are **caught** by `_sanity_check()` → flagged for human review.
+
+**Production safety layers** (all in `docai/pipeline.py`):
+1. `_filter_cjk_hallucination()` — nulls CJK values on non-Chinese docs
+2. `_deskew()` (conditional, `abs(angle) < 45°`) — corrects genuine small-angle skew only; near-90° excluded (minAreaRect unreliable in that range)
+3. `_sanity_check()` — date year/month/day range + receipt total range → `needs_review=True` on implausible values
+
 ### KIE model comparison (SROIE test n=80)
 
 Fine-tuned **LayoutLMv3-base** (BIO token classification, `training/train_layoutlmv3.py`,
@@ -164,9 +180,9 @@ misses). Same wiring works on an RTX 1650. Alternatives (managed Qwen API, local
 cd /workspace/hybrid-document-ai
 export DOCAI_WORKSPACE=/workspace/docai-ws
 export DOCAI_VLM_MODE=disabled
-/opt/miniforge3/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
+eval "$(/opt/miniforge3/bin/conda shell.bash hook)"
+conda activate docai
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```bash
 # Terminal 2 — test sau khi thấy "Application startup complete"
 
