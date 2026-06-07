@@ -144,3 +144,19 @@ Khi 1 doc sai/lỗi, **cô lập theo stage**, đừng đoán. Mỗi stage emit 
   - Test với ảnh rotate khi setup OCR pipeline mới. Bất kỳ PP-OCR-based engine nào đều có risk này.
   - Khi thêm ngôn ngữ mới (Japanese, Korean): điều chỉnh CJK filter threshold hoặc dùng language detection (langdetect) thay vì heuristic ratio.
 - **Lưu ý giới hạn của fix:** deskew chỉ hiệu quả khi `skew_angle` estimate chính xác. Ảnh bị vừa blur vừa rotate nặng → angle estimate sai → vẫn cần CJK filter làm lớp backup. Ảnh blur + rotate vẫn có `needs_human_review=True` qua quality gate.
+
+### ĐÃ GẶP: Deskew regression — xoay ảnh sai 89° gây silent wrong output (CRITICAL)
+- **Triệu chứng:** Sau khi thêm `_deskew()`, total_amount trả về 9744 thay vì 112, 519537 thay vì 2.5, date "0240-24-03" thay vì "2018-03-14" — và `needs_human_review=False`. Silent wrong trên 9/30 ảnh test, từ 0% lên 100%.
+- **Root cause:** `cv2.minAreaRect` trên toàn bộ foreground pixels của SROIE trả về angle ~-89° cho hầu hết ảnh (không phải vì ảnh bị xoay, mà vì bounding box pixel fill có hình dạng vertical). `_deskew(img, -89°)` → xoay ảnh sai 89° → OCR đọc sai hoàn toàn → KIE extract wrong values với confidence cao.
+- **Sửa:** Condition deskew chỉ với `abs(skew_angle) < 45` — chỉ correct genuine small-angle skew. Near-90° từ minAreaRect là ambiguous (portrait vs landscape), không auto-correct.
+- **Bài học:** Không bao giờ apply transformation heuristic mà không verify trước trên sample. `minAreaRect` của tất cả foreground pixels ≠ text skew angle. Đây là silent correctness bug tệ hơn crash: system tự tin cao (conf > 0.9) nhưng output sai.
+
+### ĐÃ GẶP: Silent wrong output — KIE chọn sub-total/barcode thay vì grand total
+- **Triệu chứng:** `needs_human_review=False` nhưng `total_amount` sai: 9744 (phone number), 8.68 (tax line), 31.03 (subtotal vs 32.7). Date đôi khi trả về "2015-07-03" thay vì "2019-01-12".
+- **Chẩn đoán:** Rule-based KIE candidate selection (`_rule_score`) chọn số lớn nhất trên receipt làm total, hoặc số gần keyword nhất làm date. Khi receipt có nhiều số (phone, invoice ID, subtotal) → sai candidate được chọn với confidence cao.
+- **Sửa đã implement:** `_sanity_check()` trong pipeline.py bắt được cases catastrophic:
+  - `total > 50,000` → implausible_total (bắt được barcode 519537)
+  - `total ≤ 0` → nonpositive_total
+  - `year < 2000 hoặc > 2035` → implausible_year (bắt được 1815, 0240)
+  - `month > 12 hoặc day > 31` → implausible date components
+- **Remaining limitation (5/30 cases — chấp nhận được):** "Plausible wrong" values (sub-total, tax line, nearby number) không bắt được bằng range check. Root fix: LayoutLMv3 hybrid routing — sequence labeling với layout context xác định đúng "TOTAL" token thay vì dùng regex candidate.

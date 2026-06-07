@@ -63,6 +63,40 @@ def _deskew(img: np.ndarray, angle: float) -> np.ndarray:
                           flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
 
 
+def _sanity_check(extracted: dict, doc_type: str) -> list[str]:
+    """Plausibility guardrails — catches KIE picking wrong tokens (phone number as total,
+    transposed year as date). Returns list of failure reasons → triggers needs_review."""
+    import re
+    flags = []
+
+    date_val = (extracted.get("date") or (None,))[0]
+    if date_val:
+        m = re.match(r"(\d{4})-(\d{1,2})-(\d{1,2})", str(date_val))
+        if m:
+            year, month, day = int(m.group(1)), int(m.group(2)), int(m.group(3))
+            if not (2000 <= year <= 2035):
+                flags.append(f"implausible_year:{year}")
+            if not (1 <= month <= 12):
+                flags.append(f"implausible_month:{month}")
+            if not (1 <= day <= 31):
+                flags.append(f"implausible_day:{day}")
+
+    if doc_type == "receipt":
+        total_val = (extracted.get("total_amount") or (None,))[0]
+        if total_val is not None:
+            try:
+                amount = float(total_val)
+                if amount <= 0:
+                    flags.append(f"nonpositive_total:{amount}")
+                elif amount > 50_000:
+                    # POS receipts >50k are almost always a barcode/phone extracted as total
+                    flags.append(f"implausible_total:{amount}")
+            except (TypeError, ValueError):
+                pass
+
+    return flags
+
+
 def _cjk_ratio(text: str) -> float:
     if not text:
         return 0.0
@@ -105,8 +139,10 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
         scale = 720.0 / min(h, w)
         img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_CUBIC)
 
-    # Preprocess: correct skew before OCR — PP-OCRv4 hallucinates CJK on rotated Latin text.
-    if q.is_rotated:
+    # Preprocess: correct small-angle skew (5°–44°) before OCR.
+    # Near-90° angles from minAreaRect are unreliable (landscape vs. portrait ambiguity)
+    # and cause catastrophic rotation errors when applied. CJK filter handles hallucinations.
+    if q.is_rotated and abs(q.skew_angle) < 45:
         img = _deskew(img, q.skew_angle)
 
     with metrics.stage_latency.labels("ocr").time():
@@ -137,7 +173,11 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
             kie_ver = kie.version
 
     extracted = _filter_cjk_hallucination(extracted, tokens)
+    sanity_flags = _sanity_check(extracted, dt.name)
     needs_review, should_vlm, reasons = route_decision(extracted, dt.required)
+    if sanity_flags:
+        needs_review = True
+        reasons.extend(sanity_flags)
     # Statement-specific trigger: if the parsed table fails balance reconciliation,
     # the rule parser got it wrong -> escalate to the VLM to re-read the table.
     if stmt_recon is not None and stmt_recon < 0.7:
