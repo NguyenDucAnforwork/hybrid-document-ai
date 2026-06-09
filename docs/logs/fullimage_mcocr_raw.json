@@ -1,0 +1,160 @@
+{
+  "results": {
+    "default": {
+      "field_cer": {
+        "SELLER": 0.209,
+        "ADDRESS": 0.4786,
+        "TIMESTAMP": 0.4578,
+        "TOTAL_COST": 0.2118
+      },
+      "field_anls": {
+        "SELLER": 0.8171,
+        "ADDRESS": 0.5494,
+        "TIMESTAMP": 0.5698,
+        "TOTAL_COST": 0.7943
+      },
+      "macro_cer": 0.3373,
+      "latency_ms_p50": 937.1,
+      "latency_ms_p95": 1278.9,
+      "needs_review_rate": 1.0,
+      "n_docs": 80
+    },
+    "ft": {
+      "field_cer": {
+        "SELLER": 0.111,
+        "ADDRESS": 0.2552,
+        "TIMESTAMP": 0.3764,
+        "TOTAL_COST": 0.1084
+      },
+      "field_anls": {
+        "SELLER": 0.9153,
+        "ADDRESS": 0.8015,
+        "TIMESTAMP": 0.6344,
+        "TOTAL_COST": 0.9026
+      },
+      "macro_cer": 0.2045,
+      "latency_ms_p50": 2606.3,
+      "latency_ms_p95": 3103.8,
+      "needs_review_rate": 1.0,
+      "n_docs": 80
+    }
+  },
+  "failures": {
+    "default": [
+      {
+        "img": "mcocr_public_145013ddcph.jpg",
+        "label": "TIMESTAMP",
+        "gold": "Ngày : 11/08/2020 08:06",
+        "pred": "",
+        "cer": 1.0
+      },
+      {
+        "img": "mcocr_public_145013clltn.jpg",
+        "label": "ADDRESS",
+        "gold": "Bố 5 Cẩm Tây - Cẩm Phả - QN",
+        "pred": "So5CamTay-CamPha-QN",
+        "cer": 0.52
+      },
+      {
+        "img": "mcocr_public_145013tmibr.jpg",
+        "label": "SELLER",
+        "gold": "co.op mart",
+        "pred": "Co.opMart HAU GIANG",
+        "cer": 1.3
+      },
+      {
+        "img": "mcocr_public_145013tmibr.jpg",
+        "label": "SELLER",
+        "gold": "Co.opMart HAU GIANG",
+        "pred": "Ma so thue:0305781492 Co.opMart HAU GIANG",
+        "cer": 1.16
+      },
+      {
+        "img": "mcocr_public_145013tmibr.jpg",
+        "label": "ADDRESS",
+        "gold": "188 Hau Giang, P.6, Q.6, TpHCM",
+        "pred": "Dat hang qua Df:028.39.600.913, 188HauG1ang,P.60.6,TpHCM Ma so thue:0305781492",
+        "cer": 2.07
+      },
+      {
+        "img": "mcocr_public_145013tmibr.jpg",
+        "label": "ADDRESS",
+        "gold": "Dat hang qua DT: 028.39.600.913",
+        "pred": "Dat hang qua Df:028.39.600.913, Email:hgmarketingecoopmart.vn 188HauG1ang,P.60.6,TpHCM",
+        "cer": 1.87
+      },
+      {
+        "img": "mcocr_public_145013tmibr.jpg",
+        "label": "TIMESTAMP",
+        "gold": "Ngày: 21/05/2020",
+        "pred": "Ngay:21/05/202020:42:52",
+        "cer": 0.62
+      },
+      {
+        "img": "mcocr_public_145013tmibr.jpg",
+        "label": "TIMESTAMP",
+        "gold": "20 : 42 : 52",
+        "pred": "",
+        "cer": 1.0
+      }
+    ],
+    "ft": [
+      {
+        "img": "mcocr_public_145013ddcph.jpg",
+        "label": "TIMESTAMP",
+        "gold": "Ngày : 11/08/2020 08:06",
+        "pred": "",
+        "cer": 1.0
+      },
+      {
+        "img": "mcocr_public_145013tmibr.jpg",
+        "label": "SELLER",
+        "gold": "co.op mart",
+        "pred": "Co.opMart HU GIANG",
+        "cer": 1.2
+      },
+      {
+        "img": "mcocr_public_145013tmibr.jpg",
+        "label": "SELLER",
+        "gold": "Co.opMart HAU GIANG",
+        "pred": "Thời gi hu T 4 Co.opMart HU GIANG",
+        "cer": 0.84
+      },
+      {
+        "img": "mcocr_public_145013tmibr.jpg",
+        "label": "ADDRESS",
+        "gold": "188 Hau Giang, P.6, Q.6, TpHCM",
+        "pred": "Da hang Gia Pa,- 2.230.10 .1 18 au Giang, P.,Q.QHo3 Thời gi hu T 4",
+        "cer": 1.63
+      },
+      {
+        "img": "mcocr_public_145013tmibr.jpg",
+        "label": "ADDRESS",
+        "gold": "Dat hang qua DT: 028.39.600.913",
+        "pred": "Da hang Gia Pa,- 2.230.10 .1 Pa a P Hày 62 .2 H2 2  Hu 18 au Giang, P.,Q.QHo3",
+        "cer": 1.94
+      },
+      {
+        "img": "mcocr_public_145013tmibr.jpg",
+        "label": "TIMESTAMP",
+        "gold": "Ngày: 21/05/2020",
+        "pred": ": 2/5/:2",
+        "cer": 0.56
+      },
+      {
+        "img": "mcocr_public_145013tmibr.jpg",
+        "label": "TIMESTAMP",
+        "gold": "20 : 42 : 52",
+        "pred": "",
+        "cer": 1.0
+      },
+      {
+        "img": "mcocr_public_145013tmibr.jpg",
+        "label": "TOTAL_COST",
+        "gold": "Tong so tien thanh toan:",
+        "pred": "Tong so tien thanh toan: Tổng so tuang hang:",
+        "cer": 0.83
+      }
+    ]
+  }
+}

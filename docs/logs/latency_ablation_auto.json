@@ -1,0 +1,15 @@
+{
+  "auto": {
+    "field_cer": {
+      "SELLER": 0.1139,
+      "ADDRESS": 0.2702,
+      "TIMESTAMP": 0.4326,
+      "TOTAL_COST": 0.0919
+    },
+    "macro_cer": 0.2127,
+    "p50_ms": 10741.0,
+    "p95_ms": 19378.6,
+    "mean_rerec": 36.0,
+    "needs_review_rate": 0.0
+  }
+}

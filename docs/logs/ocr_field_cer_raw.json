@@ -1,0 +1,44 @@
+{
+  "ALL": {
+    "n": 1300,
+    "default_cer": 0.3197,
+    "ft_cer": 0.0853,
+    "rel_pct": 73.3
+  },
+  "SELLER": {
+    "n": 230,
+    "default_cer": 0.2821,
+    "ft_cer": 0.0711,
+    "rel_pct": 74.8
+  },
+  "ADDRESS": {
+    "n": 367,
+    "default_cer": 0.4178,
+    "ft_cer": 0.0736,
+    "rel_pct": 82.4
+  },
+  "TIMESTAMP": {
+    "n": 263,
+    "default_cer": 0.2984,
+    "ft_cer": 0.0977,
+    "rel_pct": 67.3
+  },
+  "TOTAL_COST": {
+    "n": 439,
+    "default_cer": 0.2696,
+    "ft_cer": 0.0954,
+    "rel_pct": 64.6
+  },
+  "digit_heavy(money/date)": {
+    "n": 466,
+    "default_cer": 0.2344,
+    "ft_cer": 0.0783,
+    "rel_pct": 66.6
+  },
+  "diacritics": {
+    "n": 898,
+    "default_cer": 0.3622,
+    "ft_cer": 0.0772,
+    "rel_pct": 78.7
+  }
+}

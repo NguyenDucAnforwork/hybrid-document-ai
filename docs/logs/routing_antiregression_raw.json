@@ -1,0 +1,221 @@
+{
+  "summary": {
+    "threshold": 0.06,
+    "vi": {
+      "n": 60,
+      "routed_to_ft": 53,
+      "routed_to_ft_pct": 0.883
+    },
+    "en": {
+      "n": 60,
+      "routed_to_default": 60,
+      "routed_to_default_pct": 1.0,
+      "identity_check": "60/60 default-routed docs are token-identical to default"
+    },
+    "routing_accuracy": 0.942
+  },
+  "vi": [
+    {
+      "img": "mcocr_public_145013aaprl.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013aeriv.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013ahfqj.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "mcocr_public_145013aisfu.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013apigo.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013aqosh.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013arxqp.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013atnil.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013aukcu.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013auohz.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013bybgv.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013chgcz.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013cixex.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013clltn.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013cnknh.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013crqqo.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013cxgot.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013ddcph.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013dfzcb.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    },
+    {
+      "img": "mcocr_public_145013dhzmu.jpg",
+      "route": "ft",
+      "auto_eq_default": false
+    }
+  ],
+  "en": [
+    {
+      "img": "000.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "001.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "002.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "003.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "004.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "005.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "006.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "007.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "008.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "009.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "010.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "011.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "012.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "013.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "014.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "015.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "016.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "017.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "018.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    },
+    {
+      "img": "019.jpg",
+      "route": "default",
+      "auto_eq_default": true
+    }
+  ]
+}

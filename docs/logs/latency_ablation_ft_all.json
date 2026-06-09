@@ -1,0 +1,15 @@
+{
+  "ft_all": {
+    "field_cer": {
+      "SELLER": 0.1123,
+      "ADDRESS": 0.2709,
+      "TIMESTAMP": 0.4231,
+      "TOTAL_COST": 0.0904
+    },
+    "macro_cer": 0.2104,
+    "p50_ms": 9240.2,
+    "p95_ms": 14176.6,
+    "mean_rerec": 37.8,
+    "needs_review_rate": 0.0
+  }
+}

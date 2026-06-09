@@ -1,0 +1,15 @@
+{
+  "ft_critical": {
+    "field_cer": {
+      "SELLER": 0.1371,
+      "ADDRESS": 0.2842,
+      "TIMESTAMP": 0.4327,
+      "TOTAL_COST": 0.1316
+    },
+    "macro_cer": 0.2343,
+    "p50_ms": 9671.7,
+    "p95_ms": 15020.0,
+    "mean_rerec": 22.6,
+    "needs_review_rate": 0.0
+  }
+}

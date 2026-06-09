@@ -1,0 +1,52 @@
+{
+  "n_imgs": 80,
+  "n_gold_regions": 459,
+  "det_field_recall": 0.963,
+  "overmerge_rate": 0.07,
+  "oversplit_rate": 0.013,
+  "reading_order_error_img_rate": 0.823,
+  "field_coverage": {
+    "SELLER": 0.965,
+    "ADDRESS": 0.925,
+    "TIMESTAMP": 0.989,
+    "TOTAL_COST": 0.98
+  },
+  "taxonomy": {
+    "OK": 368,
+    "REC_ERROR": 36,
+    "DETECT_MISS": 17,
+    "OVERMERGE": 32,
+    "OVERSPLIT": 6
+  },
+  "taxonomy_by_field": {
+    "SELLER": {
+      "OK": 76,
+      "DETECT_MISS": 3,
+      "OVERMERGE": 4,
+      "REC_ERROR": 3
+    },
+    "ADDRESS": {
+      "OK": 97,
+      "OVERMERGE": 24,
+      "REC_ERROR": 1,
+      "OVERSPLIT": 1,
+      "DETECT_MISS": 10
+    },
+    "TIMESTAMP": {
+      "REC_ERROR": 25,
+      "OK": 58,
+      "OVERMERGE": 4,
+      "DETECT_MISS": 1,
+      "OVERSPLIT": 3
+    },
+    "TOTAL_COST": {
+      "OK": 137,
+      "OVERSPLIT": 2,
+      "REC_ERROR": 7,
+      "DETECT_MISS": 3
+    }
+  },
+  "boxes_per_img_mean": 39.4,
+  "unmatched_box_rate": 0.857,
+  "note": "gold = labeled field regions only -> det precision vs ALL lines not computable; unmatched_box_rate is mostly unlabeled lines, NOT errors. KIE_SELECT_ERROR not assessable (MC-OCR labels != SROIE KIE schema)."
+}

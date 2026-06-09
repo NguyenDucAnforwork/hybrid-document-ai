@@ -1,0 +1,54 @@
+{
+  "default": {
+    "field_cer": {
+      "SELLER": 0.2504,
+      "ADDRESS": 0.5263,
+      "TIMESTAMP": 0.5658,
+      "TOTAL_COST": 0.2247
+    },
+    "macro_cer": 0.3831,
+    "p50_ms": 1091.3,
+    "p95_ms": 1556.1,
+    "mean_rerec": 0.0,
+    "needs_review_rate": 0.0
+  },
+  "ft_all": {
+    "field_cer": {
+      "SELLER": 0.1434,
+      "ADDRESS": 0.3071,
+      "TIMESTAMP": 0.4668,
+      "TOTAL_COST": 0.1011
+    },
+    "macro_cer": 0.2402,
+    "p50_ms": 2883.2,
+    "p95_ms": 3456.1,
+    "mean_rerec": 41.3,
+    "needs_review_rate": 0.0
+  },
+  "ft_critical": {
+    "field_cer": {
+      "SELLER": 0.1463,
+      "ADDRESS": 0.3095,
+      "TIMESTAMP": 0.4803,
+      "TOTAL_COST": 0.1481
+    },
+    "macro_cer": 0.2595,
+    "p50_ms": 2513.1,
+    "p95_ms": 2949.7,
+    "mean_rerec": 25.1,
+    "needs_review_rate": 0.0
+  },
+  "auto": {
+    "field_cer": {
+      "SELLER": 0.1502,
+      "ADDRESS": 0.3123,
+      "TIMESTAMP": 0.4662,
+      "TOTAL_COST": 0.0975
+    },
+    "macro_cer": 0.2417,
+    "p50_ms": 2735.6,
+    "p95_ms": 3310.4,
+    "mean_rerec": 34.1,
+    "needs_review_rate": 0.0
+  }
+}

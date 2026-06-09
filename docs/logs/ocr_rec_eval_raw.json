@@ -1,0 +1,21 @@
+{
+  "summaries": {
+    "default": {
+      "recognizer": "default",
+      "n": 1300,
+      "cer": 0.3197,
+      "exact_line_acc": 0.1485,
+      "wer": 0.836,
+      "latency_ms_p50": 27.1
+    },
+    "ft": {
+      "recognizer": "ft",
+      "n": 1300,
+      "cer": 0.0853,
+      "exact_line_acc": 0.5992,
+      "wer": 0.2464,
+      "latency_ms_p50": 9.4
+    }
+  },
+  "rel_cer_improve_pct": 73.3
+}
