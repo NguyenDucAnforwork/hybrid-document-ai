@@ -56,7 +56,12 @@ def run_ocr(image_bgr: np.ndarray) -> list[dict]:
         from .ocr_recognizer import get_recognizer
         rec = get_recognizer()           # None if artifacts missing -> graceful fallback
 
-    if rec is not None and rows:
+    use_ft = rec is not None
+    if use_ft and config.OCR_RECOGNIZER == "auto":
+        # Task D: route by language — only use the VI recognizer on Vietnamese docs.
+        use_ft = _diacritic_ratio(" ".join(t for _, t, _ in rows)) >= config.OCR_VI_DIACRITIC_MIN
+
+    if use_ft and rows:
         crops = [_crop(image_bgr, box) for box, _, _ in rows]
         ft = rec.recognize(crops)
         rows = [(box, ft[i][0], ft[i][1]) for i, (box, _, _) in enumerate(rows)]
@@ -70,7 +75,21 @@ def run_ocr(image_bgr: np.ndarray) -> list[dict]:
             "bbox": [float(min(xs)), float(min(ys)), float(max(xs)), float(max(ys))],
             "conf": float(conf),
         })
+
+    if config.LINE_REGROUP:               # Task B: split horizontal two-field merges
+        from .line_grouping import regroup_tokens
+        tokens = regroup_tokens(tokens)
     return tokens
+
+
+_VN_DIAC = set("ăâđêôơưĂÂĐÊÔƠƯáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ"
+               "ÁÀẢÃẠẤẦẨẪẬẮẰẲẴẶÉÈẺẼẸẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌỐỒỔỖỘỚỜỞỠỢÚÙỦŨỤỨỪỬỮỰÝỲỶỹỴ")
+
+
+def _diacritic_ratio(text: str) -> float:
+    if not text:
+        return 0.0
+    return sum(c in _VN_DIAC for c in text) / len(text)
 
 
 def run_ocr_batch(images: list[np.ndarray]) -> list[list[dict]]:

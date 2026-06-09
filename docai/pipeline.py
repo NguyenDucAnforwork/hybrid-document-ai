@@ -300,6 +300,13 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
     if sanity_flags:
         needs_review = True
         reasons.extend(sanity_flags)
+    # Task C: geometric risk (skew/rotation) -> flag for review. Deskew above only
+    # corrects small angles; large residual skew is the rotate/perspective failure
+    # mode (high-confidence-wrong, ECE~0.5 per robustness curve) -> fail loud.
+    from .config import GEOMETRY_RISK_ANGLE
+    if getattr(q, "is_rotated", False) and abs(getattr(q, "skew_angle", 0.0)) >= GEOMETRY_RISK_ANGLE:
+        needs_review = True
+        reasons.append(f"geometry_risk:skew={q.skew_angle:.1f}")
     # Statement-specific trigger: if the parsed table fails balance reconciliation,
     # the rule parser got it wrong -> escalate to the VLM to re-read the table.
     stmt_table_meta = locals().get("stmt_meta")

@@ -338,3 +338,15 @@ Thử trước: chỉ hạ global `MIN_FIELD_CONFIDENCE` → bắt thêm đượ
 - **Kết luận (đúng như giả thuyết):** đằng sau detector thật, **bottleneck chuyển sang detector/crop/line-grouping**, không phải recognizer. Failure examples cho thấy detector gộp nhầm vùng + sai reading order (`Co. optTo. H B. Mi`); recognizer dù tốt cũng không sửa được input bị cắt sai. → lever tiếp theo để biến OCR gain thành downstream gain = **detector/line-grouping**, không phải fine-tune recognizer thêm.
 - **Caveats trung thực:** (1) full-image gold chỉ có ở train images → recognizer in-domain (số liệu lạc quan, đọc delta + pattern); (2) polygon↔token matching xấp xỉ khi box detector lệch gold → cũng làm delta full-image nhỏ lại.
 - **Bài học:** crop-level metric đẹp KHÔNG tự động thành end-to-end gain. Luôn đo full-image trước khi claim. "Đo đúng tầng bottleneck" quan trọng hơn "tối ưu tầng mình thích".
+
+### ADR-20: Detector error analysis — đo trước khi sửa; Task B null result trung thực
+
+- **Bối cảnh:** ADR-19 nói bottleneck là detector/grouping nhưng *chưa định lượng*. Dùng `anno_polygons` làm gold → `scripts/eval_detector_mcocr.py` (recall, overmerge/oversplit, reading-order, per-field failure taxonomy).
+- **Kết quả định lượng (n=80):** det_field_recall **0.978** (detector KHÔNG miss field), overmerge 0.07, oversplit 0.013. Taxonomy: OK 368, REC_ERROR 43, OVERMERGE 32, DETECT_MISS 10, OVERSPLIT 6.
+  - **TIMESTAMP**: lỗi chủ yếu **REC_ERROR (26)** dù coverage 1.0 → crop-distribution gap (crop của detector ≠ crop train), KHÔNG phải detection. Grouping/deskew không cứu.
+  - **ADDRESS**: lỗi chủ yếu **OVERMERGE (24)** → recognizer giỏi trên crop sạch (crop -82%) nhưng full-image bị merge nhiều dòng địa chỉ → cap còn -33%.
+  - **TOTAL_COST**: phần lớn OK (137), recall 0.99 → money field truyền tốt xuống full-image (-28%).
+- **Quyết định data-driven:** KHÔNG đổi detector (recall 0.978), KHÔNG ưu tiên deskew (skew không phải nguyên nhân chính ở set này). Hai lever thật: (1) split ADDRESS over-merge dọc; (2) thu hẹp crop-gap của TIMESTAMP.
+- **Task B null result (trung thực):** anchor-split *ngang* (`Ngày…Tổng tiền`) đúng cơ chế + unit pass, nhưng overmerge_rate 0.07→**0.07 (không đổi)** vì over-merge ở đây là **dọc** (ADDRESS đa dòng). → giữ Task B (đúng cho ca ngang, flag-gated) nhưng fix thật cho ADDRESS = **horizontal-projection row split trong box** (kỹ thuật khác, chưa làm). Báo cáo null thay vì giả vờ có gain.
+- **Task D (routing) + Task C (geometry flag):** đã ship, flag-gated. D route theo tỉ lệ dấu tiếng Việt (VN→CRNN, EN/SROIE→default) — đúng cách xử lý needs_review↑ (0.66→0.80) và tránh regress SROIE. C flag skew ≥8° → needs_review (fail loud cho rotate/perspective).
+- **Bài học:** đo định lượng nói cho ta biết **KHÔNG nên sửa cái gì** (detector, deskew) cũng nhiều như nên sửa cái gì. Một fix "đúng cơ chế" vẫn có thể null nếu sai trục lỗi (ngang vs dọc) — phải đo before/after, không assume.

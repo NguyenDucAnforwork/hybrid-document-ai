@@ -50,6 +50,19 @@ Khi 1 doc sai/lỗi, **cô lập theo stage**, đừng đoán. Mỗi stage emit 
 - **Cách (WP sau):** cải thiện detector/line-grouping, KHÔNG fine-tune recognizer thêm (ADR-19).
 - **Phòng ngừa:** luôn đo full-image (det+rec) trước khi claim downstream; crop-level chỉ là chặn trên.
 
+### WP3-5: Task B (anchor split) null result — sai trục lỗi (ngang vs dọc)
+- **Triệu chứng:** thêm horizontal anchor-split (`DOCAI_LINE_REGROUP=1`) nhưng overmerge_rate 0.07→0.07 (không đổi).
+- **Chẩn đoán:** taxonomy theo field cho thấy OVERMERGE tập trung ở **ADDRESS (24/32)** = merge **dọc** nhiều dòng địa chỉ; ca merge **ngang** (`Ngày…Tổng tiền`) hiếm (TIMESTAMP 4, TOTAL 0).
+- **Nguyên nhân gốc:** fix đúng cơ chế (split ngang theo anchor, unit pass) nhưng **sai trục**: over-merge ở đây là dọc.
+- **Cách (next):** in-box horizontal-projection row split cho box cao nhiều dòng (kỹ thuật khác). Giữ anchor-split (đúng cho ca ngang, flag-gated).
+- **Phòng ngừa:** luôn đo before/after; đừng assume một fix "hợp lý" sẽ giảm metric khi chưa biết trục lỗi (đo taxonomy theo field trước).
+
+### WP3-6: TIMESTAMP full-image kém dù detector recall=1.0
+- **Triệu chứng:** TIMESTAMP full-image CER ~0.45 (gần như không cải thiện) dù crop-level 0.098.
+- **Chẩn đoán:** taxonomy TIMESTAMP = REC_ERROR 26 (coverage 1.0, overmerge 4) → box đúng nhưng recognizer đọc sai.
+- **Nguyên nhân gốc:** crop của detector ≠ phân phối crop train (line time/date `10:44:08-15/08/2020`); recognizer chưa robust với crop detector-style.
+- **Cách (next):** train/augment recognizer bằng crop sinh từ detector thật (không chỉ crop gold); hoặc normalize crop trước recognize.
+
 ---
 
 ## Pre-mortem (lỗi dự kiến — xác nhận khi chạy)

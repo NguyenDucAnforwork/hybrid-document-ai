@@ -130,6 +130,15 @@ rises 0.66→0.80 (SROIE-tuned KIE doesn't benefit from Vietnamese). Next lever 
 can't emit Vietnamese diacritics ("in-language wins", not SOTA); full-image gold is train-only
 (recognizer in-domain → optimistic); `mcocr_val_sample_df.csv` is a stub, not downstream gold.
 
+**Detector error analysis** (`docs/wp3-detector-analysis.md`, `scripts/eval_detector_mcocr.py`):
+det_field_recall **0.978** (detector doesn't miss fields) → don't swap detector / don't prioritize
+deskew. Per-field cause: **TIMESTAMP = REC_ERROR** (crop-distribution gap, not detection),
+**ADDRESS = OVERMERGE** (vertical multi-line merge caps the recognizer gain), TOTAL_COST mostly OK.
+Fixes shipped flag-gated: **D** language routing (`DOCAI_OCR_RECOGNIZER=auto`, VN→CRNN / EN→default,
+fixes needs_review↑ + SROIE-regression risk), **C** geometry-risk→needs_review (`skew≥8°`). **B**
+horizontal anchor-split is correct but measured **null** here (over-merge is vertical) — real fix is
+in-box projection row-splitting (scoped next).
+
 ## 7. Robustness (real SROIE, n=30, severity 0.6)
 Source: `docs/logs/robustness_*.md`
 
