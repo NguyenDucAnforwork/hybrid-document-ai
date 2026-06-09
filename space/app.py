@@ -6,7 +6,11 @@ VLM hard-case fallback runs on Modal (serverless GPU) via mode=api.
 """
 import os
 import json
+from pathlib import Path
+import sys
+
 os.environ.setdefault("DOCAI_WORKSPACE", "/tmp/docai-workspace")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import cv2
 import numpy as np
@@ -23,10 +27,21 @@ from docai import pipeline
 from docai import classifier as _clf
 from docai.kie import KIEModel
 
-# Load trained models from the HF registry (Space has no /data workspace).
-pipeline._kie = KIEModel.load(hf_hub_download("banhchungtuongot/hybrid-docai-kie", "kie/v4/model.joblib"))
+HF_REPO = os.environ.get("DOCAI_HF_MODEL_REPO", "banhchungtuongot/hybrid-docai-kie")
+WORKSPACE = Path(os.environ["DOCAI_WORKSPACE"])
+
+
+def _model_path(local_rel: str, hf_rel: str) -> str:
+    local = WORKSPACE / local_rel
+    if local.exists():
+        return str(local)
+    return hf_hub_download(HF_REPO, hf_rel)
+
+
+# Prefer local demo artifacts when present; otherwise fall back to HF.
+pipeline._kie = KIEModel.load(_model_path("models/kie/v4/model.joblib", "models/kie/v4/model.joblib"))
 _clf._loaded = _clf.DocTypeClassifier.load(
-    hf_hub_download("banhchungtuongot/hybrid-docai-kie", "doctype/v3/model.joblib"))
+    _model_path("models/doctype/v3/model.joblib", "models/doctype/v3/model.joblib"))
 
 _KEYFIELD = {"receipt": "total_amount", "bank_statement": "closing_balance",
              "payment_order": "amount"}
@@ -79,8 +94,8 @@ DESC = (
     "Auto-routes **receipt · bank statement · payment order (ủy nhiệm chi)** → extracts fields "
     "(+ transaction table for statements). Low-confidence / unreconciled docs escalate to a "
     "**VLM on Modal**. Code: github.com/NguyenDucAnforwork/hybrid-document-ai")
-EX = "examples"
-ex = [[f"{EX}/{f}"] for f in sorted(os.listdir(EX))] if os.path.isdir(EX) else None
+EX = Path(os.environ.get("DOCAI_EXAMPLES_DIR", WORKSPACE / "examples"))
+ex = [[str(p)] for p in sorted(EX.iterdir()) if p.is_file()] if EX.is_dir() else None
 
 with gr.Blocks(title="Hybrid Document AI — OCR + KIE") as demo:
     gr.Markdown(DESC)
@@ -102,4 +117,8 @@ with gr.Blocks(title="Hybrid Document AI — OCR + KIE") as demo:
         btn.click(batch_infer, bfiles, [btable, bsum], api_name="batch")
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=int(os.environ.get("GRADIO_SERVER_PORT", "7861")),
+        share=True,
+    )

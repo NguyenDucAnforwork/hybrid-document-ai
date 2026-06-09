@@ -1,0 +1,14 @@
+services:
+  demo-ui:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.demo
+    ports:
+      - "${DOCAI_DEMO_PORT:-7861}:7860"
+    environment:
+      DOCAI_WORKSPACE: /workspace
+      DOCAI_EXAMPLES_DIR: /workspace/examples
+      DOCAI_VLM_MODE: ${DOCAI_VLM_MODE:-disabled}
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - ${DOCAI_DEMO_WORKSPACE:-./.demo-workspace}:/workspace

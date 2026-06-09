@@ -16,6 +16,7 @@ from .config import ALL_FIELDS
 from . import doctypes
 from .classifier import get_classifier
 from .statement import extract_statement, reconcile
+from .layoutlmv3_onnx import get_layoutlmv3_onnx, onnx_mode
 
 _kie: KIEModel | None = None
 
@@ -244,6 +245,7 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
     dt = doctypes.get(doc_type)
     line_items = []
     kie_ver = "n/a"
+    lm_ver = "disabled"
 
     stmt_recon = None
     with metrics.stage_latency.labels("kie").time():
@@ -260,6 +262,22 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
             kie = get_kie()
             extracted = kie.extract(tokens)
             kie_ver = kie.version
+            lm = get_layoutlmv3_onnx()
+            mode = onnx_mode()
+            if lm is not None and mode in {"merchant", "all"}:
+                lm_pred = lm.predict(img, tokens)
+                lm_ver = lm.version
+                merchant_val = lm_pred.get("merchant_name")
+                cur_val, cur_conf = extracted.get("merchant_name", (None, 0.0))
+                if merchant_val and (cur_val is None or cur_conf < 0.75):
+                    extracted["merchant_name"] = (merchant_val, max(cur_conf, 0.72))
+                if mode == "all":
+                    for field in ("date", "total_amount"):
+                        val = lm_pred.get(field)
+                        if val is not None:
+                            cur_v, cur_c = extracted.get(field, (None, 0.0))
+                            if cur_v is None or cur_c < 0.60:
+                                extracted[field] = (val, max(cur_c, 0.65))
 
     extracted = _filter_cjk_hallucination(extracted, tokens)
     sanity_flags = _sanity_check(extracted, dt.name, tokens)
@@ -313,6 +331,6 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
     return DocumentResult(
         document_id=doc_id, document_type=dt.name, route=route, fields=fields,
         line_items=line_items, quality=q, needs_human_review=needs_review,
-        model_versions={"ocr": OCR_VERSION, "kie": kie_ver,
+        model_versions={"ocr": OCR_VERSION, "kie": kie_ver, "layoutlmv3": lm_ver,
                         "doctype": f"{clf.version}({dt_conf:.2f})"},
     )

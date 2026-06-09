@@ -10,3 +10,5 @@ prometheus-client
 python-Levenshtein
 pyyaml
 huggingface_hub>=0.26
+transformers==4.49.0
+requests

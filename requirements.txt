@@ -13,6 +13,7 @@ python-Levenshtein
 httpx
 pyyaml
 huggingface_hub
+transformers==4.49.0
 pytest
 # VLM Tier-2 (optional, not installed in the in-budget build):
 #   torch transformers  # for local Donut OCR-free fallback
