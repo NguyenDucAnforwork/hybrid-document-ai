@@ -75,9 +75,42 @@ When residual skew ≥ 8° (beyond the small-angle deskew the pipeline already a
 high-confidence-wrong failure mode (robustness ADR, ECE≈0.5) — fail loud instead of emitting
 warped-text output. (Perspective_score proxy not yet added; skew used.)
 
+## Task E — in-box projection row-splitting (`docai/line_grouping.py`, `DOCAI_PROJECTION_SPLIT=1`)
+Splits tall boxes (height > 1.8× median) into per-row sub-boxes via horizontal-projection
+valleys, re-recognizes each. **Measured: ADDRESS full-image CER 0.319 → 0.316 (null);
+overmerge_rate 0.07 → 0.07; det_field_recall 0.978 → 0.963 (slight over-split).** Another honest
+null: the ADDRESS failures are **garbled recognizer output on detector crops**
+(`188 Hau Giang…` → `P a Ta, xự Q H…`), not multi-line merges projection can separate. Kept
+flag-gated, **default off**. Two grouping fixes (B horizontal, E vertical) both null → strong
+evidence the ADDRESS loss is the **crop-distribution gap**, same root cause as TIMESTAMP.
+
+## Task F — detector-style crop augmentation (`scripts/wp3_extract_det_crops.py` + `train_ocr_rec.py --augment`)
+Root-cause fix: the recognizer was trained on clean gold crops but tested on the **detector's**
+crops. Extracted **3862 detector-style crops** (all fields, boxes matched to gold), short
+fine-tune from v1 (`--init-from`, mix det-crops 2×, `--augment`: pad/crop jitter + blur + contrast),
+148 s, peak VRAM 1353 MB. **This is the fix that worked — for ALL fields, including the ones
+grouping couldn't touch:**
+
+| field | default | v1 ft | **Task F ft** | rel ↓ vs v1 |
+|---|---|---|---|---|
+| SELLER | 0.209 | 0.179 | **0.111** | −38% |
+| ADDRESS | 0.479 | 0.319 | **0.255** | −20% (hits Task E's own target) |
+| TIMESTAMP | 0.458 | 0.454 | **0.376** | −17% (missed ≤0.35 bar, but clear gain) |
+| TOTAL_COST | 0.212 | 0.152 | **0.108** | −29% |
+| **macro** | 0.337 | 0.265 | **0.205** | **−23%** |
+
+ANLS up across the board (ADDRESS 0.55→0.80, TOTAL 0.79→0.90). Clean-crop val CER also *improved*
+(0.085→0.063 — more data + robustness). Done-criteria: TIMESTAMP ≤0.35 **narrowly missed (0.376)**;
+TOTAL/ADDRESS **did not regress — they improved strongly**. Task F model is now the config default
+(`models/ocr/vi_mcocr_crnn_ft_taskf`). Latency note: full-image p50 is noisy run-to-run (machine
+under shared load); the FT path re-recognizes crops so it is heavier than default — measure on a
+quiet box before quoting.
+
 ## Bottom line
-The full-image gap is **not detection** (recall 0.978). It is **ADDRESS vertical over-merge**
-(needs projection row-splitting — Task B's horizontal split is the wrong axis here, measured null)
-and **TIMESTAMP crop-distribution REC_ERROR** (needs crop-matched recognizer data). Task D
-(routing) + Task C (geometry flag) are correct, cheap safety/quality fixes shipped now. This is
-the measurement that tells us where NOT to spend effort (detector swap, deskew) as much as where to.
+The full-image gap is **not detection** (recall 0.978), **not deskew**, and **not line-grouping**
+(Tasks B & E both measured null on ADDRESS). It is the **crop-distribution gap**: the recognizer
+hadn't seen detector-style crops. **Task F (detector-style crop augmentation) fixed all four fields**
+(macro 0.265→0.205), where two grouping attempts failed. The lesson the measurement bought: don't
+swap the detector, don't deskew, don't keep tuning grouping — fine-tune the recognizer on
+detector-style crops. Task D (language routing) + Task C (geometry flag) remain shipped as
+safety/quality fixes.

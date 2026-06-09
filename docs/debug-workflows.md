@@ -61,7 +61,20 @@ Khi 1 doc sai/lỗi, **cô lập theo stage**, đừng đoán. Mỗi stage emit 
 - **Triệu chứng:** TIMESTAMP full-image CER ~0.45 (gần như không cải thiện) dù crop-level 0.098.
 - **Chẩn đoán:** taxonomy TIMESTAMP = REC_ERROR 26 (coverage 1.0, overmerge 4) → box đúng nhưng recognizer đọc sai.
 - **Nguyên nhân gốc:** crop của detector ≠ phân phối crop train (line time/date `10:44:08-15/08/2020`); recognizer chưa robust với crop detector-style.
-- **Cách (next):** train/augment recognizer bằng crop sinh từ detector thật (không chỉ crop gold); hoặc normalize crop trước recognize.
+- **Cách (next):** train/augment recognizer bằng crop sinh từ detector thật (không chỉ crop gold); hoặc normalize crop trước recognize. → **đã làm ở WP3-8.**
+
+### WP3-7: Task E (projection row-split) cũng null cho ADDRESS
+- **Triệu chứng:** thêm `DOCAI_PROJECTION_SPLIT=1` (tách box cao theo valley) nhưng ADDRESS full-image CER 0.319→0.316 (null), overmerge 0.07→0.07, recall 0.978→0.963 (over-split nhẹ).
+- **Chẩn đoán:** xem failure → pred là **rác recognizer** trên crop detector (`188 Hau Giang…`→`P a Ta, xự Q H…`), không phải nhiều dòng dính nhau.
+- **Nguyên nhân gốc:** ADDRESS loss KHÔNG phải merge dọc mà là crop-distribution gap (giống TIMESTAMP). Hai fix grouping (B, E) đều sai hướng.
+- **Cách sửa:** → Task F (WP3-8). Giữ projection split flag-gated, default OFF.
+- **Phòng ngừa:** khi 2 fix cùng họ (grouping) đều null, dừng đào sâu họ đó — đổi giả thuyết (sang recognizer/crop).
+
+### WP3-8: Task F (detector-style crop augmentation) — fix đúng, mọi field tốt lên
+- **Triệu chứng (mục tiêu):** đóng crop-distribution gap cho TIMESTAMP/ADDRESS.
+- **Cách:** trích 3862 detector-style crops (box match gold) + short fine-tune từ v1 (`--init-from`, mix 2×, `--augment` pad/crop jitter + blur + contrast).
+- **Kết quả:** full-image macro CER 0.265→0.205; SELLER 0.179→0.111, ADDRESS 0.319→0.255, TIMESTAMP 0.454→0.376, TOTAL 0.152→0.108; clean-val 0.085→0.063. Model F thành default.
+- **Phòng ngừa/đo:** TIMESTAMP suýt trượt ≤0.35 (0.376) → time/date strings vẫn khó nhất; latency full-image đo trên máy rảnh (FT re-recognize nặng hơn default, số p50 nhiễu theo tải máy).
 
 ---
 

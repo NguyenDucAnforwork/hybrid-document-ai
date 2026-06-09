@@ -61,13 +61,19 @@ MIN_DIM = 480  # synthetic images are small; keep modest
 # (detector still RapidOCR). Switchable per-deployment with no code change.
 #   rapidocr_default | ppocr_vi_mcocr_ft (force) | auto (route by language, WP-3 Task D)
 OCR_RECOGNIZER = os.environ.get("DOCAI_OCR_RECOGNIZER", "rapidocr_default")
-OCR_REC_MODEL = os.environ.get("DOCAI_OCR_REC_MODEL", str(MODELS_DIR / "ocr/vi_mcocr_crnn_ft/model.onnx"))
-OCR_REC_DICT = os.environ.get("DOCAI_OCR_REC_DICT", str(MODELS_DIR / "ocr/vi_mcocr_crnn_ft/vi_dict.txt"))
+# Default -> the Task F detector-augmented model (full-image macro CER 0.265->0.205,
+# strictly better than the clean-only v1); override via env for the v1 model.
+OCR_REC_MODEL = os.environ.get("DOCAI_OCR_REC_MODEL", str(MODELS_DIR / "ocr/vi_mcocr_crnn_ft_taskf/model.onnx"))
+OCR_REC_DICT = os.environ.get("DOCAI_OCR_REC_DICT", str(MODELS_DIR / "ocr/vi_mcocr_crnn_ft_taskf/vi_dict.txt"))
 # WP-3 Task D: min Vietnamese-diacritic ratio of default OCR text to route a doc to
 # the fine-tuned VI recognizer in 'auto' mode (English/SROIE stays on default).
 OCR_VI_DIACRITIC_MIN = float(os.environ.get("DOCAI_OCR_VI_DIACRITIC_MIN", "0.015"))
 # WP-3 Task B: split detector boxes that merge two fields horizontally.
 LINE_REGROUP = os.environ.get("DOCAI_LINE_REGROUP", "0") == "1"
+# WP-3 Task E: split tall over-merged boxes into rows via horizontal projection
+# (FT/auto recognizer path only). Triggers when box height > ratio * median height.
+PROJECTION_SPLIT = os.environ.get("DOCAI_PROJECTION_SPLIT", "0") == "1"
+PROJECTION_SPLIT_RATIO = float(os.environ.get("DOCAI_PROJECTION_SPLIT_RATIO", "1.8"))
 # WP-3 Task C: flag geometric risk (skew) -> needs_review.
 GEOMETRY_RISK_ANGLE = float(os.environ.get("DOCAI_GEOMETRY_RISK_ANGLE", "8.0"))
 

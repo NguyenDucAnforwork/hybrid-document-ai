@@ -15,6 +15,9 @@ that needs in-box horizontal-projection splitting (documented as next step).
 from __future__ import annotations
 import re
 
+import cv2
+import numpy as np
+
 from .kie import ANCHORS
 
 # anchor keyword -> field-type, for detecting two-field horizontal merges
@@ -60,6 +63,40 @@ def split_merged_token(tok: dict) -> list[dict]:
         sx1 = x0 + width * (b / L)
         out.append({"text": seg, "bbox": [sx0, y0, sx1, y1], "conf": tok.get("conf", 0.0)})
     return out or [tok]
+
+
+def projection_split_box(image_bgr, bbox, min_band_h: int = 8, gap_frac: float = 0.12):
+    """Split a tall over-merged box into per-row sub-boxes via horizontal projection.
+
+    WP-3 Task E: the real fix for ADDRESS vertical over-merge. Crop the box, binarize
+    (ink=white), sum ink per row, find text bands separated by low-ink valleys, and
+    emit one axis-aligned sub-box per band. Returns None if <2 bands (no split).
+    """
+    x0, y0, x1, y1 = [int(round(v)) for v in bbox]
+    H, W = image_bgr.shape[:2]
+    x0, y0 = max(0, x0), max(0, y0)
+    x1, y1 = min(W, x1), min(H, y1)
+    if x1 - x0 < 3 or y1 - y0 < 3:
+        return None
+    crop = image_bgr[y0:y1, x0:x1]
+    g = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
+    th = cv2.threshold(g, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    rowsum = th.sum(axis=1).astype(float) / 255.0      # ink pixels per row
+    if rowsum.max() <= 0:
+        return None
+    text = rowsum >= gap_frac * rowsum.max()
+    bands, s = [], None
+    for i, v in enumerate(text):
+        if v and s is None:
+            s = i
+        elif not v and s is not None:
+            bands.append((s, i)); s = None
+    if s is not None:
+        bands.append((s, len(text)))
+    bands = [(a, b) for a, b in bands if b - a >= min_band_h]
+    if len(bands) < 2:
+        return None
+    return [[x0, y0 + a, x1, y0 + b] for a, b in bands]   # full-width per-row sub-boxes
 
 
 def regroup_tokens(tokens: list[dict]) -> list[dict]:

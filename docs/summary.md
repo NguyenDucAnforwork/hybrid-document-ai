@@ -135,9 +135,16 @@ det_field_recall **0.978** (detector doesn't miss fields) → don't swap detecto
 deskew. Per-field cause: **TIMESTAMP = REC_ERROR** (crop-distribution gap, not detection),
 **ADDRESS = OVERMERGE** (vertical multi-line merge caps the recognizer gain), TOTAL_COST mostly OK.
 Fixes shipped flag-gated: **D** language routing (`DOCAI_OCR_RECOGNIZER=auto`, VN→CRNN / EN→default,
-fixes needs_review↑ + SROIE-regression risk), **C** geometry-risk→needs_review (`skew≥8°`). **B**
-horizontal anchor-split is correct but measured **null** here (over-merge is vertical) — real fix is
-in-box projection row-splitting (scoped next).
+fixes needs_review↑ + SROIE-regression risk), **C** geometry-risk→needs_review (`skew≥8°`).
+
+**Grouping fixes are a dead-end here; the recognizer crop-gap was the real bottleneck.** Task B
+(horizontal anchor-split) and Task E (vertical projection row-split) both measured **null** on
+ADDRESS — the failures are garbled recognizer output on *detector* crops, not merges. **Task F —
+detector-style crop augmentation** (extract detector boxes matched to gold, short fine-tune with
+crop/pad/blur jitter) — fixed **all four fields**: full-image macro CER **0.265 → 0.205**
+(SELLER 0.179→0.111, ADDRESS 0.319→0.255, TIMESTAMP 0.454→0.376, TOTAL 0.152→0.108), clean-val CER
+also improved 0.085→0.063. Now the config-default recognizer. The measurement bought the real lesson:
+not the detector, not deskew, not grouping — **fine-tune the recognizer on detector-style crops.**
 
 ## 7. Robustness (real SROIE, n=30, severity 0.6)
 Source: `docs/logs/robustness_*.md`

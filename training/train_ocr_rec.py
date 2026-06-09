@@ -48,15 +48,43 @@ def preprocess(img_gray: np.ndarray) -> np.ndarray:
     return x[None, :, :]
 
 
+def _augment_gray(g: np.ndarray, rng: np.random.Generator) -> np.ndarray:
+    """Detector-style crop augmentation (WP-3 Task F): loose/tight crop, pad jitter,
+    mild blur + brightness/contrast — make the recognizer robust to detector crops."""
+    h, w = g.shape[:2]
+    # loose (pad) or tight (crop) jitter on each edge, up to ~12%
+    dl, dr = rng.integers(-int(0.08 * w) - 1, int(0.12 * w) + 1, size=2)
+    dt, db = rng.integers(-int(0.10 * h) - 1, int(0.12 * h) + 1, size=2)
+    if dl > 0 or dr > 0 or dt > 0 or db > 0:
+        g = cv2.copyMakeBorder(g, max(dt, 0), max(db, 0), max(dl, 0), max(dr, 0),
+                               cv2.BORDER_REPLICATE)
+    y0, x0 = max(-dt, 0), max(-dl, 0)
+    y1 = g.shape[0] - max(-db, 0); x1 = g.shape[1] - max(-dr, 0)
+    if y1 - y0 > 4 and x1 - x0 > 4:
+        g = g[y0:y1, x0:x1]
+    if rng.random() < 0.3:
+        g = cv2.GaussianBlur(g, (3, 3), 0)
+    if rng.random() < 0.5:
+        alpha = 0.8 + 0.4 * rng.random(); beta = rng.integers(-20, 21)
+        g = np.clip(g.astype(np.float32) * alpha + beta, 0, 255).astype(np.uint8)
+    return g
+
+
 class OCRDataset(Dataset):
-    def __init__(self, txt: Path, codec: CharsetCodec):
-        self.items = []
-        for ln in txt.read_text(encoding="utf-8").split("\n"):
-            if not ln.strip():
-                continue
-            p, t = ln.split("\t", 1)
-            self.items.append((p, t))
+    def __init__(self, items, codec: CharsetCodec, augment: bool = False):
+        self.items = items                       # list[(path, text)]
         self.codec = codec
+        self.augment = augment
+        self._rng = np.random.default_rng(42)
+
+    @staticmethod
+    def from_txt(txt: Path):
+        items = []
+        for ln in txt.read_text(encoding="utf-8").split("\n"):
+            if ln.strip():
+                p, t = ln.split("\t", 1)
+                items.append((p, t))
+        return items
 
     def __len__(self):
         return len(self.items)
@@ -66,6 +94,8 @@ class OCRDataset(Dataset):
         img = cv2.imread(p, cv2.IMREAD_GRAYSCALE)
         if img is None:
             img = np.zeros((IMG_H, IMG_W), np.uint8)
+        if self.augment:
+            img = _augment_gray(img, self._rng)
         x = preprocess(img)
         y = self.codec.encode(t)
         return torch.from_numpy(x), torch.tensor(y, dtype=torch.long), t
@@ -106,6 +136,10 @@ def main():
     ap.add_argument("--lr", type=float, default=1e-4)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--init-from", default=None, help="checkpoint to continue from (Task F)")
+    ap.add_argument("--extra-data", action="append", default=[],
+                    help="PATH:WEIGHT extra label file mixed in (repeatable)")
+    ap.add_argument("--augment", action="store_true", help="detector-style crop augmentation")
     args = ap.parse_args()
 
     torch.manual_seed(args.seed); np.random.seed(args.seed)
@@ -114,15 +148,27 @@ def main():
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
 
     codec = CharsetCodec.from_dict_file(data / "vi_dict.txt")
-    tr = OCRDataset(data / "train.txt", codec)
-    va = OCRDataset(data / "val.txt", codec)
-    print(f"train={len(tr)} val={len(va)} num_classes={codec.num_classes} device={device}")
+    train_items = OCRDataset.from_txt(data / "train.txt")
+    for spec in args.extra_data:                     # Task F: mix detector-style crops
+        path, _, w = spec.partition(":")
+        weight = int(w) if w else 1
+        extra = OCRDataset.from_txt(Path(path))
+        train_items += extra * weight
+        print(f"+ extra {len(extra)}x{weight} from {Path(path).name}")
+    tr = OCRDataset(train_items, codec, augment=args.augment)
+    va = OCRDataset(OCRDataset.from_txt(data / "val.txt"), codec)
+    print(f"train={len(tr)} val={len(va)} num_classes={codec.num_classes} device={device} "
+          f"augment={args.augment} init_from={args.init_from}")
 
     tl = DataLoader(tr, batch_size=args.batch, shuffle=True, num_workers=8,
                     collate_fn=collate, drop_last=True, pin_memory=True)
     vl = DataLoader(va, batch_size=args.batch, shuffle=False, num_workers=8, collate_fn=collate)
 
     model = CRNN(codec.num_classes).to(device)
+    if args.init_from:
+        ck = torch.load(args.init_from, map_location=device)
+        model.load_state_dict(ck["state_dict"])
+        print(f"loaded init weights from {args.init_from}")
     opt = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
     ctc = nn.CTCLoss(blank=0, zero_infinity=True)
     scaler = torch.cuda.amp.GradScaler(enabled=(device == "cuda"))

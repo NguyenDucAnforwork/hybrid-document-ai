@@ -350,3 +350,12 @@ Thử trước: chỉ hạ global `MIN_FIELD_CONFIDENCE` → bắt thêm đượ
 - **Task B null result (trung thực):** anchor-split *ngang* (`Ngày…Tổng tiền`) đúng cơ chế + unit pass, nhưng overmerge_rate 0.07→**0.07 (không đổi)** vì over-merge ở đây là **dọc** (ADDRESS đa dòng). → giữ Task B (đúng cho ca ngang, flag-gated) nhưng fix thật cho ADDRESS = **horizontal-projection row split trong box** (kỹ thuật khác, chưa làm). Báo cáo null thay vì giả vờ có gain.
 - **Task D (routing) + Task C (geometry flag):** đã ship, flag-gated. D route theo tỉ lệ dấu tiếng Việt (VN→CRNN, EN/SROIE→default) — đúng cách xử lý needs_review↑ (0.66→0.80) và tránh regress SROIE. C flag skew ≥8° → needs_review (fail loud cho rotate/perspective).
 - **Bài học:** đo định lượng nói cho ta biết **KHÔNG nên sửa cái gì** (detector, deskew) cũng nhiều như nên sửa cái gì. Một fix "đúng cơ chế" vẫn có thể null nếu sai trục lỗi (ngang vs dọc) — phải đo before/after, không assume.
+
+### ADR-21: Crop-distribution gap là bottleneck thật — grouping null, det-crop augmentation thắng
+
+- **Bối cảnh:** ADR-20 đoán ADDRESS bottleneck = over-merge dọc → thử **Task E** (in-box projection row-split).
+- **Task E (đo):** ADDRESS full-image CER 0.319→**0.316 (null)**, overmerge 0.07→0.07, recall 0.978→0.963 (over-split nhẹ). Failure examples là recognizer đọc **rác trên crop của detector** (`188 Hau Giang…`→`P a Ta, xự Q H…`), KHÔNG phải merge nhiều dòng. → **hai fix grouping (B ngang, E dọc) đều null** ⇒ ADDRESS loss KHÔNG phải grouping mà là **crop-distribution gap** (giống TIMESTAMP).
+- **Task F (fix thật):** recognizer train trên crop gold sạch nhưng test trên crop của *detector*. Trích **3862 detector-style crops** (box match gold), short fine-tune từ v1 (`--init-from`, mix det-crops 2×, augment pad/crop jitter + blur + contrast), 148s, VRAM 1353MB.
+  - Full-image **mọi field cải thiện**: SELLER 0.179→0.111, ADDRESS 0.319→**0.255** (đạt mục tiêu của Task E nhưng bằng F!), TIMESTAMP 0.454→0.376, TOTAL 0.152→0.108, **macro 0.265→0.205 (-23%)**. Clean-val CER cũng tốt lên 0.085→0.063.
+  - Done-criteria: TIMESTAMP ≤0.35 **suýt trượt (0.376)** nhưng cải thiện rõ; TOTAL/ADDRESS KHÔNG regress (tốt lên). Model F thành default.
+- **Bài học lớn nhất WP-3:** crop-level metric đẹp + detector recall cao vẫn có thể fail full-image vì **train/serve crop mismatch**. Fix đúng KHÔNG phải đổi detector / deskew / grouping mà là **cho recognizer thấy crop kiểu detector**. Đo lường loại trừ 3 hướng sai trước khi tìm ra hướng đúng — đó là giá trị của debug pipeline định lượng.

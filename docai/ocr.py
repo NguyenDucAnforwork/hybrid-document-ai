@@ -32,6 +32,32 @@ def _get_engine():
     return _engine
 
 
+def _aabb(box):
+    xs = [p[0] for p in box]; ys = [p[1] for p in box]
+    return [min(xs), min(ys), max(xs), max(ys)]
+
+
+def _poly(aabb):
+    x0, y0, x1, y1 = aabb
+    return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
+
+
+def _projection_split_boxes(aabbs, image_bgr, ratio):
+    """Expand tall boxes into per-row sub-boxes (WP-3 Task E). Order preserved."""
+    from .line_grouping import projection_split_box
+    import statistics
+    heights = [b[3] - b[1] for b in aabbs] or [1]
+    med = statistics.median(heights)
+    out = []
+    for b in aabbs:
+        if (b[3] - b[1]) > ratio * med:
+            subs = projection_split_box(image_bgr, b)
+            if subs and len(subs) >= 2:
+                out.extend(subs); continue
+        out.append(b)
+    return out
+
+
 def _crop(image_bgr: np.ndarray, box) -> np.ndarray:
     xs = [p[0] for p in box]; ys = [p[1] for p in box]
     x0, y0 = max(0, int(min(xs))), max(0, int(min(ys)))
@@ -62,9 +88,13 @@ def run_ocr(image_bgr: np.ndarray) -> list[dict]:
         use_ft = _diacritic_ratio(" ".join(t for _, t, _ in rows)) >= config.OCR_VI_DIACRITIC_MIN
 
     if use_ft and rows:
-        crops = [_crop(image_bgr, box) for box, _, _ in rows]
+        boxes = [_aabb(box) for box, _, _ in rows]
+        if config.PROJECTION_SPLIT and boxes:
+            boxes = _projection_split_boxes(boxes, image_bgr, config.PROJECTION_SPLIT_RATIO)
+        crops = [image_bgr[int(b[1]):int(b[3]), int(b[0]):int(b[2])] for b in boxes]
+        crops = [c if c.size else image_bgr for c in crops]
         ft = rec.recognize(crops)
-        rows = [(box, ft[i][0], ft[i][1]) for i, (box, _, _) in enumerate(rows)]
+        rows = [(_poly(b), ft[i][0], ft[i][1]) for i, b in enumerate(boxes)]
 
     tokens = []
     for box, text, conf in rows:
