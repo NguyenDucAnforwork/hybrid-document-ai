@@ -12,6 +12,17 @@ groups:
           summary: "p95 end-to-end latency > 3s"
           runbook: "Check GPU/CPU saturation; oversized image cap at 3000px should prevent the worst cases."
 
+      - alert: OCRStageLatencyP95
+        # OCR is the known CPU bottleneck. Watch it directly so a regression is
+        # attributable to the stage, not just end-to-end. Tune DOCAI_OCR_WORKERS /
+        # DOCAI_OCR_INTRA_THREADS (avoid oversubscription: workers*intra <= cores).
+        expr: histogram_quantile(0.95, rate(stage_latency_seconds_bucket{stage="ocr"}[5m])) > 2
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "OCR stage p95 > 2s — CPU OCR saturating"
+          runbook: "Check ocr_pool_workers gauge; run scripts/bench_threads.py to re-tune workers x intra_threads."
+
       # ── Input error rate ─────────────────────────────────────────────────────
 
       - alert: HighDecodeErrorRate

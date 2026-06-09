@@ -18,3 +18,8 @@ jobs:
       - name: Eval gate (fails build if macro-F1 < threshold)
         env: {DOCAI_WORKSPACE: ${{ runner.temp }}/ws}
         run: python scripts/run_benchmark.py --data ${{ runner.temp }}/ws/data/r --f1-threshold 0.6
+      - name: Latency smoke gate (coarse regression check, noisy-runner tolerant)
+        env: {DOCAI_WORKSPACE: ${{ runner.temp }}/ws}
+        # Smoke only: 4 synthetic images, +40% tolerance. Authoritative latency
+        # numbers come from the local profiler/sweep, not the CI runner.
+        run: python scripts/latency_gate.py --images 4 --tolerance 0.40

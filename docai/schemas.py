@@ -30,6 +30,7 @@ class DocumentResult(BaseModel):
     quality: QualityReport
     needs_human_review: bool = False
     model_versions: dict[str, str] = Field(default_factory=dict)  # audit/traceability
+    timings: Optional[dict[str, float]] = None  # per-stage latency (ms) for profiling
     error: Optional[str] = None
 
 

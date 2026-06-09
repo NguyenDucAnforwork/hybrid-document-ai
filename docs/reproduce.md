@@ -154,6 +154,22 @@ python scripts/load_test.py \
 # Kết quả tham khảo: batch=1 p50=2.71s 22docs/min, batch=5 p50=12.1s 25docs/min, batch=10 p50=26s 23docs/min
 # Throughput plateau ~22-25 docs/min bất kể batch size -> bottleneck là CPU OCR (rapidocr single-thread)
 
+# 4g. PERFORMANCE PACK (ADR-17) — profiler / sweep / latency gate (không cần API chạy)
+export DOCAI_VLM_MODE=disabled DOCAI_LAYOUTLMV3_MODE=disabled
+# Stage profiler: cold_start_ms tách khỏi warm p50/p95/p99 mỗi stage
+python scripts/profile_pipeline.py --synthetic 30          # -> docs/logs/profile_*.md
+# (real SROIE thay synthetic): python scripts/profile_pipeline.py --img-dir $DOCAI_WORKSPACE/data/sroie/test/images --limit 40
+# Thread/worker sweep: workers × intra_threads × concurrency (đo oversubscription W*T)
+python scripts/bench_threads.py --synthetic 16 --workers 1,2,4 --intra 1,2,4 --concurrency 1,2,5,10
+# -> docs/logs/bench_threads_*.md (+ serialize/worker/pool_wait breakdown)
+# Tune OCR pool qua env: DOCAI_OCR_WORKERS (mặc định 2), DOCAI_OCR_INTRA_THREADS (mặc định 1), DOCAI_OCR_INTER_THREADS=1
+#   QUY TẮC chống oversubscription: workers * intra_threads <= số core.
+# Latency regression gate (smoke, dùng trong CI):
+python scripts/latency_gate.py --update-baseline           # ghi docs/logs/latency_baseline.json (commit file này)
+python scripts/latency_gate.py                             # check: exit 1 nếu regress > +40%
+# Kết quả tham khảo (synthetic n=30, ảnh nhỏ, 48 cores): OCR=96% latency (warm total p50 535ms, OCR 514ms),
+#   cold start 1485ms; throughput plateau ~70-140 docs/min, tăng workers KHÔNG giúp (xem ADR-17).
+
 # 4f. Go-live audit — kiểm tra SILENT_WRONG (wrong field + needs_review=False, critical failure)
 # Chạy TRỰC TIẾP (không qua uvicorn) để test code mới nhất:
 /home/dev/.conda/envs/docai/bin/python - << 'PYEOF'

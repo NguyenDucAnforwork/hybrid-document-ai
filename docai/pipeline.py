@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 
 from . import metrics
+from . import profiling
 from .quality import check_quality
 from .ocr import run_ocr, OCR_VERSION
 from .kie import KIEModel
@@ -194,10 +195,13 @@ def _filter_cjk_hallucination(extracted: dict, tokens: list[dict]) -> dict:
 
 
 def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
+    timings = profiling.begin()
     t0 = time.perf_counter()
     try:
-        img = _decode(image_bytes)
+        with profiling.stage("decode"):
+            img = _decode(image_bytes)
     except ValueError as e:
+        profiling.end()
         from .schemas import QualityReport as _QR
         from .config import ALL_FIELDS
         dummy_q = _QR(blur_score=0, is_blurry=False, is_dark=False,
@@ -213,9 +217,11 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
             error=str(e),
         )
 
-    q = check_quality(img)
+    with profiling.stage("quality"):
+        q = check_quality(img)
     metrics.blur_observed.observe(q.blur_score)
 
+    _pp = time.perf_counter()
     # Preprocess: cap oversized images to avoid multi-second latency spikes.
     # Resize down to max 3000px on the longest side before any other processing.
     h, w = img.shape[:2]
@@ -234,21 +240,23 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
     # and cause catastrophic rotation errors when applied. CJK filter handles hallucinations.
     if q.is_rotated and abs(q.skew_angle) < 45:
         img = _deskew(img, q.skew_angle)
+    profiling.record("preprocess", (time.perf_counter() - _pp) * 1000.0)
 
-    with metrics.stage_latency.labels("ocr").time():
+    with profiling.stage("ocr"):
         tokens = run_ocr(img)
 
     # Document-type router: receipt vs bank_statement (multi-document).
     H, W = img.shape[:2]
     clf = get_classifier()
-    doc_type, dt_conf = clf.predict(tokens, W, H)
+    with profiling.stage("classify"):
+        doc_type, dt_conf = clf.predict(tokens, W, H)
     dt = doctypes.get(doc_type)
     line_items = []
     kie_ver = "n/a"
     lm_ver = "disabled"
 
     stmt_recon = None
-    with metrics.stage_latency.labels("kie").time():
+    with profiling.stage("kie"):
         if dt.name == "bank_statement":
             from .statement import _debug_path as _stmt_debug_path
             dbg = _stmt_debug_path(doc_id)
@@ -271,7 +279,8 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
             lm = get_layoutlmv3_onnx()
             mode = onnx_mode()
             if lm is not None and mode in {"merchant", "all"}:
-                lm_pred = lm.predict(img, tokens)
+                with profiling.stage("layoutlmv3"):
+                    lm_pred = lm.predict(img, tokens)
                 lm_ver = lm.version
                 merchant_val = lm_pred.get("merchant_name")
                 cur_val, cur_conf = extracted.get("merchant_name", (None, 0.0))
@@ -315,7 +324,8 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
     route = "traditional_ocr"
 
     if should_vlm:
-        vlm_fields = vlm_extract(image_bytes, prompt=dt.vlm_prompt)
+        with profiling.stage("vlm"):
+            vlm_fields = vlm_extract(image_bytes, prompt=dt.vlm_prompt)
         if vlm_fields:
             route = "vlm_fallback"
             metrics.fallback_total.inc()
@@ -347,11 +357,15 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
     if needs_review:
         metrics.human_review_total.inc()
     metrics.documents_processed_total.labels("needs_review" if needs_review else "success").inc()
-    metrics.stage_latency.labels("total").observe(time.perf_counter() - t0)
-
-    return DocumentResult(
+    total_ms = (time.perf_counter() - t0) * 1000.0
+    metrics.stage_latency.labels("total").observe(total_ms / 1000.0)
+    profiling.record("total", total_ms)
+    result = DocumentResult(
         document_id=doc_id, document_type=dt.name, route=route, fields=fields,
         line_items=line_items, quality=q, needs_human_review=needs_review,
         model_versions={"ocr": OCR_VERSION, "kie": kie_ver, "layoutlmv3": lm_ver,
                         "doctype": f"{clf.version}({dt_conf:.2f})"},
+        timings=dict(timings),
     )
+    profiling.end()
+    return result

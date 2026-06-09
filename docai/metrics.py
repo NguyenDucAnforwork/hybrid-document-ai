@@ -5,8 +5,12 @@ from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTEN
 # --- System ---
 documents_processed_total = Counter("documents_processed_total", "docs processed", ["status"])
 batch_jobs_total = Counter("batch_jobs_total", "batch jobs created")
-stage_latency = Histogram("stage_latency_seconds", "per-stage latency", ["stage"])
+stage_latency = Histogram("stage_latency_seconds", "per-stage latency", ["stage"],
+                          buckets=(0.01, 0.02, 0.05, 0.1, 0.2, 0.35, 0.5, 1.0, 2.0, 5.0, 10.0))
 queue_size = Gauge("queue_size", "pending docs in queue", ["stage"])
+ocr_batch_size = Histogram("ocr_batch_size", "images per OCR pool batch",
+                           buckets=(1, 2, 4, 8, 16, 32))
+ocr_pool_workers = Gauge("ocr_pool_workers", "configured OCR process-pool workers")
 request_count = Counter("request_count_total", "total API requests", ["method", "endpoint", "status_code"])
 request_latency = Histogram("request_latency_seconds", "API request latency", ["endpoint"],
                             buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0))

@@ -304,3 +304,18 @@ Thử trước: chỉ hạ global `MIN_FIELD_CONFIDENCE` → bắt thêm đượ
   - GPU: batch inference → 1 GPU handle N requests song song. p95 → ~0.2s × batch_latency.
   - Kubernetes HPA: auto-scale replica dựa trên request queue depth.
 - **Bài học:** CPU-bound ML inference không benefit từ Python threading (GIL + ONNX internal threads = contention). Concurrency SLA cho ML service = infrastructure problem (GPU/multi-process), không giải được bằng `asyncio` tricks. Cần document rõ trong ops runbook.
+
+### ADR-17: Performance pack — stage profiler, process-pool OCR, thread sweep, latency CI gate
+
+- **Bối cảnh:** ADR-16 kết luận đúng (multi-process, không thread) nhưng *chưa đo*. Cần biến nhận định thành **đo lường tái lập được**: time đi đâu, tune thế nào, regression bắt bằng gì.
+- **Đã làm (`docai/profiling.py`, `docai/serving/ocr_pool.py`, `scripts/profile_pipeline.py|bench_threads.py|latency_gate.py`):**
+  - **Stage profiler** (contextvar + Prometheus `stage_latency`, sub-second buckets) gắn `timings` vào mỗi `DocumentResult`.
+  - **ProcessPoolOCR** thật (thay vòng lặp single-thread cũ trong batcher), worker nhận encoded bytes, trả `serialize_ms / worker_ms / pool_wait_ms`.
+  - **Sweep 2 biến** workers×intra_threads×concurrency (không chỉ concurrency) → in `effective_load = W*T`.
+  - **Latency CI gate** dạng *smoke* (4 ảnh synthetic, tolerance +40%) — không dùng làm SLA tuyệt đối vì runner nhiễu.
+- **Số đo (synthetic n=30, ảnh nhỏ, LayoutLMv3/VLM off — KHÔNG phải real SROIE ~2s):**
+  - **OCR = 96% latency**: warm total p50 **535ms**, trong đó OCR p50 **514ms**; kie 0.4ms, quality 7.2ms, decode 3.5ms, classify 0.1ms. → mọi tối ưu phải nhắm OCR, không phải KIE.
+  - **Cold start 1485ms** (OCR engine load 1460ms) → bắt buộc `warmup()` mọi worker khi deploy, nếu không request đầu lag ~3×.
+  - **Sweep (48 cores):** throughput plateau ~70–140 docs/min; **tăng workers KHÔNG giúp** — `W=1,T=2` ≈ best (140), `W=4` tệ hơn (44–72). `pool_wait_ms` tăng theo (batch − workers) = queueing, không phải bug.
+- **Phát hiện trung thực (đáng giá hơn 1 con số đẹp):** với ảnh nhỏ + 1 ảnh/request, chi phí *cố định* mỗi lần gọi OCR (≈0.5s) áp đảo; thêm process chỉ tăng tranh chấp bộ nhớ/cache chứ không tăng throughput. Process-pool có giá trị khi **traffic đồng thời thật** vượt số worker — nó cho đường multi-core đúng đắn (W=1–2, T=1–2), không phải khi tăng W mù quáng. Oversubscription (W×T lớn) làm tệ đi đúng như ADR-16 dự đoán — giờ có số liệu xác nhận.
+- **Bài học:** "profile trước, tune sau". Nếu chỉ sweep concurrency mà không sweep thread config sẽ kết luận sai về scaling. Cold/warm phải tách. CI latency gate phải là smoke, report chính thức là local.

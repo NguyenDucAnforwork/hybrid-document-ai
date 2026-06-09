@@ -60,14 +60,27 @@ async def request_middleware(request: Request, call_next):
 
 # ── startup ───────────────────────────────────────────────────────────────────
 
+ocr_pool = None
+
+
 @app.on_event("startup")
 async def _startup():
     storage.init()
     ocr.warmup()
     get_kie()
-    global ocr_batcher
-    ocr_batcher = DynamicBatcher(batch_fn=lambda imgs: [ocr.run_ocr(i) for i in imgs])
+    global ocr_batcher, ocr_pool
+    # CPU OCR via a process pool (true multi-core), fronted by the dynamic batcher.
+    from docai.serving.ocr_pool import ProcessPoolOCR
+    ocr_pool = ProcessPoolOCR()
+    ocr_pool.warmup()
+    ocr_batcher = DynamicBatcher(batch_fn=ocr_pool.run_many)
     ocr_batcher.start()
+
+
+@app.on_event("shutdown")
+async def _shutdown():
+    if ocr_pool is not None:
+        ocr_pool.shutdown()
 
 
 # ── shared helpers ────────────────────────────────────────────────────────────
