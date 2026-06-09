@@ -329,3 +329,12 @@ Thử trước: chỉ hạ global `MIN_FIELD_CONFIDENCE` → bắt thêm đượ
 - **Tích hợp:** adapter optional `DOCAI_OCR_RECOGNIZER=rapidocr_default|ppocr_vi_mcocr_ft`; detector giữ nguyên RapidOCR, chỉ thay recognizer; token schema không đổi → KIE/router không cần sửa. Adapter tự load dict tiếng Việt + CTC decode (rapidocr-onnxruntime không cho override `rec_keys_path`).
 - **Không làm (honest):** downstream anti-regression trên SROIE (SROIE chưa materialize ở checkout này + recognizer tiếng Việt sẽ regress trên English — đúng như dự đoán); per-field CER breakdown; `mcocr_val_sample_df.csv` là **stub** (`anno_texts="abc abc abc"`), KHÔNG phải downstream gold.
 - **Bài học:** với hard env constraint, chọn tooling theo "không vỡ env hiện có" quan trọng ngang chọn model. Và một con số gain đẹp (-73%) phải kèm giải thích nguyên nhân, nếu không sẽ overclaim.
+
+### ADR-19: WP-3 full-image vs crop-level — bottleneck dịch sang detector, không phải recognizer
+
+- **Bối cảnh:** -73% CER là **crop-level** (line đã cắt sẵn). Production chạy full image → detector → crop → recognizer → line grouping → KIE. Phải kiểm tra full-image mới biết gain có "thật" downstream không.
+- **Per-field crop-level (leakage-free, val held-out):** SELLER -74.8%, ADDRESS -82.4%, TIMESTAMP -67.3%, **TOTAL_COST -64.6%** (0.27→0.095), diacritics -78.7%. → money field (downstream `total`) cải thiện mạnh ở crop-level.
+- **Full-image (n=80, det+rec+matching):** macro CER 0.337→0.265 (**~21%**, nhỏ hơn nhiều so với crop -73%); TIMESTAMP ~0%; TOTAL_COST -28%; ADDRESS -33%. Latency p50: default 2407ms → ft 1815ms (ft nhanh hơn). needs_review: 0.66 → **0.80** (KIE/router tune cho SROIE không hưởng lợi từ text tiếng Việt).
+- **Kết luận (đúng như giả thuyết):** đằng sau detector thật, **bottleneck chuyển sang detector/crop/line-grouping**, không phải recognizer. Failure examples cho thấy detector gộp nhầm vùng + sai reading order (`Co. optTo. H B. Mi`); recognizer dù tốt cũng không sửa được input bị cắt sai. → lever tiếp theo để biến OCR gain thành downstream gain = **detector/line-grouping**, không phải fine-tune recognizer thêm.
+- **Caveats trung thực:** (1) full-image gold chỉ có ở train images → recognizer in-domain (số liệu lạc quan, đọc delta + pattern); (2) polygon↔token matching xấp xỉ khi box detector lệch gold → cũng làm delta full-image nhỏ lại.
+- **Bài học:** crop-level metric đẹp KHÔNG tự động thành end-to-end gain. Luôn đo full-image trước khi claim. "Đo đúng tầng bottleneck" quan trọng hơn "tối ưu tầng mình thích".

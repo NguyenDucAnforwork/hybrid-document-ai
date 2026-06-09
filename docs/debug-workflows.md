@@ -22,6 +22,36 @@ Khi 1 doc sai/lỗi, **cô lập theo stage**, đừng đoán. Mỗi stage emit 
 
 ---
 
+## WP-3 OCR recognizer fine-tune — sự cố thực tế
+
+### WP3-1: CRNN collapse về all-blank (val CER = 1.0)
+- **Triệu chứng:** eval đầu tiên ft CER=1.0, exact=0.0, pred rỗng toàn bộ (default CER=0.34) → rel -197%.
+- **Chẩn đoán:** CER=1.0 + pred="" ⇒ CTC decode ra toàn blank (idx 0). Train chỉ 3 epoch (~123 step), lr 1e-4 (giá trị cho *fine-tune pretrained*, không phải from-scratch).
+- **Nguyên nhân gốc:** CRNN from-scratch chưa thoát "all-blank regime" của CTC; lr thấp + quá ít step (mới dùng <1 phút trong budget 1h).
+- **Cách sửa:** lr 1e-3, 60 epoch → val CER 0.0854, exact 0.60; vẫn 227s, peak VRAM 1316MB.
+- **Phòng ngừa:** CTC from-scratch đừng mượn HP của fine-tune; sanity-check pred KHÔNG rỗng sau epoch 1; tận dụng hết budget.
+
+### WP3-2: ONNX export crash "Module onnx is not installed"
+- **Triệu chứng:** train xong, best.pt lưu OK, `torch.onnx.export` ném `OnnxExporterError`.
+- **Nguyên nhân:** `pip install torch` không kéo theo package `onnx` (exporter cần).
+- **Cách sửa:** `pip install onnx`; re-export từ best.pt (không train lại).
+- **Phòng ngừa:** cài `onnx` cùng torch; export là bước riêng đọc checkpoint, không nhồi cuối train loop.
+
+### WP3-3: per-field CER ra rỗng (SELLER/ADDRESS… thiếu dòng)
+- **Triệu chứng:** report chỉ có ALL/diacritics/digit_heavy; nhãn field n=0.
+- **Nguyên nhân gốc:** `_crop_label_map` key bằng đường dẫn tuyệt đối nhưng lookup bằng basename (`Path(p).name`) → không khớp.
+- **Cách sửa:** key map theo `Path(cp).name` → SELLER -74.8%, ADDRESS -82.4%, TOTAL_COST -64.6%.
+- **Phòng ngừa:** chuẩn hóa key (basename) cả ghi lẫn đọc; assert tổng n field ≈ n_val.
+
+### WP3-4: gain crop-level (-73%) ≫ full-image (~-21%) → bottleneck là detector
+- **Triệu chứng:** crop-level CER -73% nhưng full-image macro chỉ -21%, TIMESTAMP ~0%.
+- **Chẩn đoán:** dump failure full-image → detector gộp nhầm vùng + sai reading order (`Co. optTo. H B. Mi`), có dòng pred rỗng (detector miss).
+- **Nguyên nhân gốc:** recognizer tốt không cứu input bị segment sai; bottleneck dịch sang detector/crop/line-grouping.
+- **Cách (WP sau):** cải thiện detector/line-grouping, KHÔNG fine-tune recognizer thêm (ADR-19).
+- **Phòng ngừa:** luôn đo full-image (det+rec) trước khi claim downstream; crop-level chỉ là chặn trên.
+
+---
+
 ## Pre-mortem (lỗi dự kiến — xác nhận khi chạy)
 
 ### Disk đầy khi `pip install`

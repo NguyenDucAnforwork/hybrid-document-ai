@@ -114,12 +114,21 @@ switchable adapter. OCR-level, MC-OCR val n=1300:
 | default (RapidOCR, Chinese dict) | 0.3197 | 0.149 | 0.836 | 27.1 |
 | **fine-tuned CRNN** | **0.0853** | **0.599** | **0.246** | **9.4** |
 
-**CER ↓ 73.3% relative**, and faster. Train 227s, peak VRAM 1316 MB (≤1h/≤5GB ✓).
-**Honest caveat:** the large gain is partly because RapidOCR's default rec can't emit Vietnamese
-diacritics (language mismatch) — finding is "in-language recognizer wins", not "CRNN is SOTA".
-Downstream SROIE anti-regression not run (Vietnamese recognizer would regress on English — the
-expected, documented outcome → production needs per-language routing, not a global swap).
-`mcocr_val_sample_df.csv` is a stub, not downstream gold.
+**CER ↓ 73.3% relative**, and faster. Train 227s, peak VRAM 1316 MB (≤1h/≤5GB ✓). Artifacts on HF
+(`hybrid-docai-kie:ocr/vi_mcocr_crnn_ft`, dataset `hybrid-docai-mcocr-ocr`).
+
+**Per-field, crop-level (leakage-free):** SELLER −74.8%, ADDRESS −82.4%, TIMESTAMP −67.3%,
+**TOTAL_COST −64.6%** (0.27→0.095), diacritics −78.7%. The money field downstream `total` depends
+on does improve strongly at crop level.
+
+**Full-image pipeline (det+rec, n=80):** macro CER **0.337→0.265 (~21%)** — much smaller than crop
+−73% (TIMESTAMP ≈ 0%). **Bottleneck shifts to the detector/line-grouping, not the recognizer**:
+behind the real detector, mis-segmentation dominates and recognizer quality can't fix it. `needs_review`
+rises 0.66→0.80 (SROIE-tuned KIE doesn't benefit from Vietnamese). Next lever = detector, not more rec FT.
+
+**Honest caveats:** crop-level gain is partly because RapidOCR's default rec uses a Chinese dict and
+can't emit Vietnamese diacritics ("in-language wins", not SOTA); full-image gold is train-only
+(recognizer in-domain → optimistic); `mcocr_val_sample_df.csv` is a stub, not downstream gold.
 
 ## 7. Robustness (real SROIE, n=30, severity 0.6)
 Source: `docs/logs/robustness_*.md`
