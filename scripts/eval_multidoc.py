@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import json
 import datetime as dt
+import os
 from pathlib import Path
 import sys
 
@@ -88,7 +89,11 @@ def main():
     ap.add_argument("--payment-orders", default=f"{WS}/data/payment_orders_test")
     ap.add_argument("--limit", type=int, default=30)
     ap.add_argument("--out", default="docs/logs")
+    ap.add_argument("--statement-table-mode", default=None,
+                    help="override DOCAI_STATEMENT_TABLE_MODE for this eval: rules|tatr|hybrid")
     args = ap.parse_args()
+    if args.statement_table_mode:
+        os.environ["DOCAI_STATEMENT_TABLE_MODE"] = args.statement_table_mode
 
     def load(d):
         return json.loads((Path(d) / "labels.json").read_text())[:args.limit]
@@ -110,7 +115,9 @@ def main():
     stamp = dt.datetime.now().strftime("%Y%m%d_%H%M")
     Path(args.out).mkdir(parents=True, exist_ok=True)
     (Path(args.out) / "multidoc_raw.json").write_text(json.dumps(summary, indent=2))
+    mode_note = os.environ.get("DOCAI_STATEMENT_TABLE_MODE", "rules")
     md = [f"# Multi-document eval (HARD statements) {stamp}", "",
+          f"- **statement-table mode**: `{mode_note}`",
           f"- **3-way routing accuracy**: {routing} "
           f"(receipt {summary['routing']['receipt']}, statement {S['routing_to_statement']}, payment_order {P['routing_correct']})",
           f"- **statement table (HARD)**: row-F1 {S['table_row_f1']}, amount-acc {S['table_amount_accuracy']}, "

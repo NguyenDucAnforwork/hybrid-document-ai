@@ -1,0 +1,12 @@
+{
+  "mode": "tatr",
+  "ok": false,
+  "reason": "no_table_detected",
+  "table_bbox": null,
+  "rows_detected": 0,
+  "columns_detected": 0,
+  "assignment_rate": 0.0,
+  "semantic_columns": {},
+  "grid_text": [],
+  "line_items_count": 0
+}

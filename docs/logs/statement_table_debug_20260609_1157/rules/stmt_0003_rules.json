@@ -1,0 +1,155 @@
+{
+  "mode": "rules",
+  "ok": true,
+  "reason": null,
+  "rows_detected": 22,
+  "column_order": [
+    "date",
+    "description",
+    "amount",
+    "balance"
+  ],
+  "semantic_columns": {
+    "date": 0,
+    "description": 1,
+    "amount": 2,
+    "balance": 3
+  },
+  "required_columns_ok": true,
+  "joined_rows": [
+    {
+      "date": "VPBANK",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "SAO KE TAI KHOAN",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "STK:2935627915",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "Chu tai khoan: TRAN THI BICH",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "Ky:01/01/2024 - 31/01/2024",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "So du dau: 29,068,507",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "So du cuoi: 25,748,507",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "Ngay",
+      "description": "Dien giai",
+      "amount": "So tien",
+      "balance": "So du"
+    },
+    {
+      "date": "02/01/2024",
+      "description": "QR PAYMENT ONLIDNEOIRANDRFER 28,948,507",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "03/01/2024",
+      "description": "INTEREST ATM MT,HDERAWARL REP9ND68,507",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "04/01/2024",
+      "description": "FEE",
+      "amount": "4,500,000 DR 24,568,507",
+      "balance": ""
+    },
+    {
+      "date": "05/01/2024",
+      "description": "ATM WITHDRAWA,QROPAOOENRONBIN68TBAASFER",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "06/01/2024",
+      "description": "REFUND QR PAYMN500,000 CR 33,568,507",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "07/01/2024",
+      "description": "POS PURCHASE 9,900,000 DR 23,668,507",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "08/01/2024",
+      "description": "QRPAYMENTPOBORURGCHASE",
+      "amount": "",
+      "balance": "23,718,507"
+    },
+    {
+      "date": "09/01/2024",
+      "description": "SALARY CREDIT12OSOPURCRASE 23,838,507",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "10/01/2024",
+      "description": "BILLPAYMENTAIZNWIGHDAWAI23RB58NG07",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "11/01/2024",
+      "description": "SALARY CREDIT 1,500,000 CR25,458,507",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "date": "12/01/2024",
+      "description": "POS PURCHASE IMDERBST CR",
+      "amount": "",
+      "balance": "25,578,507"
+    },
+    {
+      "date": "13/01/2024",
+      "description": "ATM WITHDRAWAL120,000 CR",
+      "amount": "",
+      "balance": "25,698,507"
+    },
+    {
+      "date": "14/01/2024",
+      "description": "BILLPAYMENTPE,OOO CR",
+      "amount": "",
+      "balance": "25,748,507"
+    },
+    {
+      "date": "Tong",
+      "description": "",
+      "amount": "",
+      "balance": "25,748,507"
+    }
+  ],
+  "line_items_count": 5,
+  "assignment_rate": 1.0
+}

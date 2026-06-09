@@ -1,0 +1,137 @@
+{
+  "mode": "rules",
+  "ok": true,
+  "reason": null,
+  "rows_detected": 16,
+  "column_order": [
+    "date",
+    "description",
+    "debit",
+    "credit",
+    "balance"
+  ],
+  "semantic_columns": {
+    "date": 0,
+    "description": 1,
+    "debit": 2,
+    "credit": 3,
+    "balance": 4
+  },
+  "required_columns_ok": true,
+  "joined_rows": [
+    {
+      "date": "VIETCOMBANK",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "ACCOUNTSTATEMENT",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Account No:47759100912636",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Account Holder:NGUYEN VANA",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Period: 01/01/2024 - 31/01/2024",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Opening Balance: 16,350,581",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Closing Balance: 33,870,581",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Date",
+      "description": "Description",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance"
+    },
+    {
+      "date": "02/01/2024",
+      "description": "ONLINE TRANSFER",
+      "debit": "",
+      "credit": "350,000",
+      "balance": "16,700,581"
+    },
+    {
+      "date": "03/01/2024",
+      "description": "FEE ATM WITHDRAWAL ONLINE TRANSFERO,OO0",
+      "debit": "",
+      "credit": "",
+      "balance": "16,820,581"
+    },
+    {
+      "date": "04/01/2024",
+      "description": "ATM WITHDRAWAL INTEBET,0O0",
+      "debit": "",
+      "credit": "",
+      "balance": "15,320,581"
+    },
+    {
+      "date": "05/01/2024",
+      "description": "SALARY CREDITONLINE TRANSFER",
+      "debit": "",
+      "credit": "4,500,000",
+      "balance": "19,820,581"
+    },
+    {
+      "date": "06/01/2024",
+      "description": "POS PURCHASE",
+      "debit": "",
+      "credit": "000'006'6",
+      "balance": "29,720,581"
+    },
+    {
+      "date": "07/01/2024",
+      "description": "FEE ONLINE TRANSFERO,OOO",
+      "debit": "",
+      "credit": "",
+      "balance": "29,370,581"
+    },
+    {
+      "date": "08/01/2024",
+      "description": "QR PAYMENTSALARY CREDIT",
+      "debit": "",
+      "credit": "4,500,000",
+      "balance": "33,870,581"
+    },
+    {
+      "date": "Total",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": "33,870,581"
+    }
+  ],
+  "line_items_count": 7,
+  "assignment_rate": 1.0
+}

@@ -1,0 +1,158 @@
+{
+  "mode": "rules",
+  "ok": true,
+  "reason": null,
+  "rows_detected": 19,
+  "column_order": [
+    "date",
+    "description",
+    "debit",
+    "credit",
+    "balance"
+  ],
+  "semantic_columns": {
+    "date": 0,
+    "description": 1,
+    "debit": 2,
+    "credit": 3,
+    "balance": 4
+  },
+  "required_columns_ok": true,
+  "joined_rows": [
+    {
+      "date": "VIETCOMBANK",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "SAOKE TAI KHOAN",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "STK: 4428319150",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Chu taikhoan:TRAN THI BICH",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Ky:01/01/2025 - 31/01/2025",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "So du dau: 35,569,039",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "So du cuoi: 62,319,039",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Ngay",
+      "description": "Dien giai",
+      "debit": "No",
+      "credit": "Co",
+      "balance": "So du"
+    },
+    {
+      "date": "02/01/2025",
+      "description": "ONLINETRANSFERPOSPURCHASE",
+      "debit": "",
+      "credit": "120,000",
+      "balance": "35,689,039"
+    },
+    {
+      "date": "03/01/2025",
+      "description": "QR PAYMENT INTEREST FEE",
+      "debit": "",
+      "credit": "000'006'6",
+      "balance": "45,589,039"
+    },
+    {
+      "date": "04/01/2025",
+      "description": "ONLINE TRANSFER BILL PAYMENT",
+      "debit": "",
+      "credit": "000'006'6",
+      "balance": "55,489,039"
+    },
+    {
+      "date": "05/01/2025",
+      "description": "INTERESTSALARYCREDIT9OOSOOORRASE",
+      "debit": "",
+      "credit": "",
+      "balance": "45,589,039"
+    },
+    {
+      "date": "06/01/2025",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": "41,089,039"
+    },
+    {
+      "date": "07/01/2025",
+      "description": "INTEREST",
+      "debit": "",
+      "credit": "50,000",
+      "balance": "41,139,039"
+    },
+    {
+      "date": "08/01/2025",
+      "description": "SALARY CREDIT BILL PAYMENT ATM WITHDPAVALO,O00",
+      "debit": "",
+      "credit": "",
+      "balance": "51,039,039"
+    },
+    {
+      "date": "09/01/2025",
+      "description": "ATMWITHDRAWAL SALARY CREDIT POS PURC9HABE,OO0",
+      "debit": "",
+      "credit": "",
+      "balance": "60,939,039"
+    },
+    {
+      "date": "10/01/2025",
+      "description": "ONLINE TRANSFER",
+      "debit": "",
+      "credit": "1,500,000",
+      "balance": "62,439,039"
+    },
+    {
+      "date": "11/01/2025",
+      "description": "ATMWITHDRAWALREFUNDOQROOPAYRENT",
+      "debit": "",
+      "credit": "",
+      "balance": "62,319,039"
+    },
+    {
+      "date": "Tong",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": "62,319,039"
+    }
+  ],
+  "line_items_count": 10,
+  "assignment_rate": 1.0
+}

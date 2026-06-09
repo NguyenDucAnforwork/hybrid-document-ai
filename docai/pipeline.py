@@ -250,10 +250,16 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
     stmt_recon = None
     with metrics.stage_latency.labels("kie").time():
         if dt.name == "bank_statement":
-            extracted, line_items = extract_statement(tokens)
-            stmt_recon = reconcile(line_items, extracted.get("opening_balance", (None,))[0],
-                                   extracted.get("closing_balance", (None,))[0])
+            from .statement import _debug_path as _stmt_debug_path
+            dbg = _stmt_debug_path(doc_id)
+            extracted, line_items, stmt_meta = extract_statement(
+                tokens, image_bgr=img, debug_path=dbg, return_meta=True
+            )
+            stmt_recon = stmt_meta.get("row_reconcile", 0.0)
             kie_ver = "statement-rules+table"
+            selected = stmt_meta.get("table", {}).get("selected_mode") or stmt_meta.get("table_mode")
+            if selected:
+                kie_ver = f"statement-{selected}"
         elif dt.name == "payment_order":
             from .kv import kv_extract
             extracted = kv_extract(tokens, dt)
@@ -287,10 +293,25 @@ def process_document(doc_id: str, image_bytes: bytes) -> DocumentResult:
         reasons.extend(sanity_flags)
     # Statement-specific trigger: if the parsed table fails balance reconciliation,
     # the rule parser got it wrong -> escalate to the VLM to re-read the table.
+    stmt_table_meta = locals().get("stmt_meta")
     if stmt_recon is not None and stmt_recon < 0.7:
         should_vlm = True
         needs_review = True          # unreliable table -> flag for human even if VLM off
         reasons.append(f"low_table_reconciliation:{stmt_recon}")
+    if dt.name == "bank_statement" and stmt_table_meta is not None:
+        table_meta = stmt_table_meta.get("table", {})
+        if not table_meta.get("required_columns_ok", True):
+            should_vlm = True
+            needs_review = True
+            reasons.append("missing_statement_columns")
+        if table_meta.get("assignment_rate", 1.0) < 0.75:
+            should_vlm = True
+            needs_review = True
+            reasons.append(f"low_table_assignment:{table_meta['assignment_rate']}")
+        if len(line_items) < 3 and table_meta.get("rows_detected", 0) >= 6:
+            should_vlm = True
+            needs_review = True
+            reasons.append(f"sparse_statement_rows:{len(line_items)}")
     route = "traditional_ocr"
 
     if should_vlm:

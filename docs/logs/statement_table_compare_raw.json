@@ -1,0 +1,56 @@
+{
+  "dataset": "C:\\docai-demo-ws\\data\\statements_test_hard",
+  "limit": 8,
+  "debug_count": 3,
+  "results": {
+    "rules": {
+      "mode": "rules",
+      "n": 8,
+      "table_row_f1": 0.943,
+      "table_amount_accuracy": 0.413,
+      "table_description_anls@.5": 0.987,
+      "latency_ms_mean": 2.4,
+      "latency_ms_p50": 1.8,
+      "row_reconcile_mean": 0.347,
+      "closing_reconcile_rate": 0.0,
+      "debug_examples": [
+        "docs\\logs\\statement_table_debug_20260609_1213\\rules\\stmt_0000_rules.json",
+        "docs\\logs\\statement_table_debug_20260609_1213\\rules\\stmt_0001_rules.json",
+        "docs\\logs\\statement_table_debug_20260609_1213\\rules\\stmt_0002_rules.json"
+      ]
+    },
+    "tatr": {
+      "mode": "tatr",
+      "n": 8,
+      "table_row_f1": 0.791,
+      "table_amount_accuracy": 0.291,
+      "table_description_anls@.5": 0.873,
+      "latency_ms_mean": 411.6,
+      "latency_ms_p50": 416.2,
+      "row_reconcile_mean": 0.206,
+      "closing_reconcile_rate": 0.0,
+      "debug_examples": [
+        "docs\\logs\\statement_table_debug_20260609_1213\\tatr\\stmt_0000_tatr.json",
+        "docs\\logs\\statement_table_debug_20260609_1213\\tatr\\stmt_0001_tatr.json",
+        "docs\\logs\\statement_table_debug_20260609_1213\\tatr\\stmt_0002_tatr.json"
+      ]
+    },
+    "hybrid": {
+      "mode": "hybrid",
+      "n": 8,
+      "table_row_f1": 0.943,
+      "table_amount_accuracy": 0.413,
+      "table_description_anls@.5": 0.96,
+      "latency_ms_mean": 376.4,
+      "latency_ms_p50": 377.8,
+      "row_reconcile_mean": 0.347,
+      "closing_reconcile_rate": 0.0,
+      "debug_examples": [
+        "docs\\logs\\statement_table_debug_20260609_1213\\hybrid\\stmt_0000_hybrid.json",
+        "docs\\logs\\statement_table_debug_20260609_1213\\hybrid\\stmt_0001_hybrid.json",
+        "docs\\logs\\statement_table_debug_20260609_1213\\hybrid\\stmt_0002_hybrid.json"
+      ]
+    }
+  },
+  "note": "Metrics use OCR tokens from run_ocr(image), then compare statement-table extraction only."
+}

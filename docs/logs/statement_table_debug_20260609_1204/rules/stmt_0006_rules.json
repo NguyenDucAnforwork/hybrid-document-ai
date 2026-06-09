@@ -1,0 +1,172 @@
+{
+  "mode": "rules",
+  "ok": true,
+  "reason": null,
+  "rows_detected": 21,
+  "column_order": [
+    "date",
+    "description",
+    "debit",
+    "credit",
+    "balance"
+  ],
+  "semantic_columns": {
+    "date": 0,
+    "description": 1,
+    "debit": 2,
+    "credit": 3,
+    "balance": 4
+  },
+  "required_columns_ok": true,
+  "joined_rows": [
+    {
+      "date": "VPBANK",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "SAO KE TAI KHOAN",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "So TK: 5825801030",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Chu tai khoan: PHAM THU D",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Ky:01/01/2024 -31/01/2024",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "So du dau: 31,075,067",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "So du cuoi: 43,175,067",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Ngay",
+      "description": "Dien giai",
+      "debit": "No",
+      "credit": "Co",
+      "balance": "So du"
+    },
+    {
+      "date": "02/01/2024",
+      "description": "ONLINE TRANSFER4,500,000 DR",
+      "debit": "",
+      "credit": "",
+      "balance": "26,575,067"
+    },
+    {
+      "date": "03/01/2024",
+      "description": "INTEREST",
+      "debit": "",
+      "credit": "120,000",
+      "balance": "26,695,067"
+    },
+    {
+      "date": "04/01/2024",
+      "description": "POS PURCHASE INTEREST ONLINE TRBBDFDRO",
+      "debit": "",
+      "credit": "",
+      "balance": "27,045,067"
+    },
+    {
+      "date": "05/01/2024",
+      "description": "QR PAYMENT",
+      "debit": "9,900,000 DR",
+      "credit": "",
+      "balance": "17,145,067"
+    },
+    {
+      "date": "06/01/2024",
+      "description": "ONLINE TRANSFER SALARY CREDIT",
+      "debit": "",
+      "credit": "350,000",
+      "balance": "17,495,067"
+    },
+    {
+      "date": "07/01/2024",
+      "description": "POS PURCHASE",
+      "debit": "",
+      "credit": "000'006'6",
+      "balance": "27,395,067"
+    },
+    {
+      "date": "08/01/2024",
+      "description": "INTEREST QR PAYMENT",
+      "debit": "",
+      "credit": "4,500,000",
+      "balance": "31,895,067"
+    },
+    {
+      "date": "09/01/2024",
+      "description": "ONLINE TRANSFER SALARY CREDIT",
+      "debit": "",
+      "credit": "000'006'6",
+      "balance": "41,795,067"
+    },
+    {
+      "date": "10/01/2024",
+      "description": "FEE SALARY CREDIT",
+      "debit": "",
+      "credit": "50,000",
+      "balance": "41,845,067"
+    },
+    {
+      "date": "11/01/2024",
+      "description": "INTEREST",
+      "debit": "",
+      "credit": "1,500,000",
+      "balance": "43,345,067"
+    },
+    {
+      "date": "12/01/2024",
+      "description": "SALARYCREDITQROPAGEDIRATMWITHDRAWAL",
+      "debit": "",
+      "credit": "",
+      "balance": "43,295,067"
+    },
+    {
+      "date": "13/01/2024",
+      "description": "QR PAYMENT SALARO,OREDDR ONLINE TRANSFER",
+      "debit": "",
+      "credit": "",
+      "balance": "43,175,067"
+    },
+    {
+      "date": "Tong",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": "43,175,067"
+    }
+  ],
+  "line_items_count": 12,
+  "assignment_rate": 1.0
+}

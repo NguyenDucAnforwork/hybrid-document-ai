@@ -1,0 +1,158 @@
+{
+  "mode": "rules",
+  "ok": true,
+  "reason": null,
+  "rows_detected": 19,
+  "column_order": [
+    "ref",
+    "date",
+    "description",
+    "amount",
+    "balance"
+  ],
+  "semantic_columns": {
+    "ref": 0,
+    "date": 1,
+    "description": 2,
+    "amount": 3,
+    "balance": 4
+  },
+  "required_columns_ok": true,
+  "joined_rows": [
+    {
+      "ref": "BIDV",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "ACCOUNTSTATEMENT",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "Acc No: 699736535054",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "Account Holder: TRAN THI BICH",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "Period:01/01/2026-31/01/2026",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "Opening Balance:33,036,051",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "Closing Balance: 51,926,051",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "Ref",
+      "date": "Date",
+      "description": "Description",
+      "amount": "Amount",
+      "balance": "Balance"
+    },
+    {
+      "ref": "CT587",
+      "date": "02/01/2026",
+      "description": "POSPURCHASEATMWITBDBAWADOO",
+      "amount": "",
+      "balance": "42,936,051"
+    },
+    {
+      "ref": "CT635",
+      "date": "03/01/2026",
+      "description": "SALARY CREDIT ONLINE(SRANODER INTEREST",
+      "amount": "",
+      "balance": "42,886,051"
+    },
+    {
+      "ref": "CT443",
+      "date": "04/01/2026",
+      "description": "FEE REFUND",
+      "amount": "120,000",
+      "balance": "43,006,051"
+    },
+    {
+      "ref": "CT381",
+      "date": "05/01/2026",
+      "description": "POS PURCHASE ATM WITBDRANAL FEE",
+      "amount": "",
+      "balance": "43,126,051"
+    },
+    {
+      "ref": "CT269",
+      "date": "06/01/2026",
+      "description": "POS PURCHASE INTERESFOQROBAYMENT",
+      "amount": "",
+      "balance": "43,176,051"
+    },
+    {
+      "ref": "CT450",
+      "date": "07/01/2026",
+      "description": "SALARY CREDIT QR PAYB\u5320TOGEE",
+      "amount": "",
+      "balance": "43,526,051"
+    },
+    {
+      "ref": "CT957",
+      "date": "08/01/2026",
+      "description": "ONLINE TRANSFER SALARIY, 5OREDIGO)",
+      "amount": "",
+      "balance": "42,026,051"
+    },
+    {
+      "ref": "CT924",
+      "date": "09/01/2026",
+      "description": "ONLINE TRANSFER",
+      "amount": "350,000",
+      "balance": "42,376,051"
+    },
+    {
+      "ref": "CT772",
+      "date": "10/01/2026",
+      "description": "FEE INTEREST SALARY9CREDID00",
+      "amount": "",
+      "balance": "52,276,051"
+    },
+    {
+      "ref": "CT277",
+      "date": "11/01/2026",
+      "description": "QRPAYMENTSALARYCRB5DT,OOO)",
+      "amount": "",
+      "balance": "51,926,051"
+    },
+    {
+      "ref": "Total",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": "51,926,051"
+    }
+  ],
+  "line_items_count": 10,
+  "assignment_rate": 1.0
+}

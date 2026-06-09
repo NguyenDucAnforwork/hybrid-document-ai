@@ -136,11 +136,17 @@ echo "gate exit=$?"     # !=0 nếu macro-F1 < threshold (cổng CI)
 python scripts/compare_models.py --limit 80 --out docs/logs
 # -> docs/logs/model_comparison_*.md (merchant ANLS / date F1 / total F1 per model)
 
-# 4c. Robustness curve theo từng degradation (tối/mờ/nghiêng/nhiễu/rách/...)
+# 4c. Statement-table spike: rules vs zero-shot Table-Transformer vs guarded hybrid
+python scripts/compare_statement_table_modes.py \
+    --data $DOCAI_WORKSPACE/data/statements_test_hard \
+    --limit 8 --out docs/logs
+# -> docs/logs/statement_table_compare_*.md + overlay/json trong statement_table_debug_*/
+
+# 4d. Robustness curve theo từng degradation (tối/mờ/nghiêng/nhiễu/rách/...)
 python scripts/eval_robustness.py --data $DOCAI_WORKSPACE/data/sroie/test --limit 30 --severity 0.6
 # -> docs/logs/robustness_*.md  (CER/ANLS/ECE/needs_review per degradation)
 
-# 4d. Load test (batch 1/5/10 docs, 3 rounds — bottleneck analysis)
+# 4e. Load test (batch 1/5/10 docs, 3 rounds — bottleneck analysis)
 # Chạy sau khi đã start uvicorn (bước 3)
 python scripts/load_test.py \
     --url http://localhost:8000 \
@@ -148,7 +154,7 @@ python scripts/load_test.py \
 # Kết quả tham khảo: batch=1 p50=2.71s 22docs/min, batch=5 p50=12.1s 25docs/min, batch=10 p50=26s 23docs/min
 # Throughput plateau ~22-25 docs/min bất kể batch size -> bottleneck là CPU OCR (rapidocr single-thread)
 
-# 4e. Go-live audit — kiểm tra SILENT_WRONG (wrong field + needs_review=False, critical failure)
+# 4f. Go-live audit — kiểm tra SILENT_WRONG (wrong field + needs_review=False, critical failure)
 # Chạy TRỰC TIẾP (không qua uvicorn) để test code mới nhất:
 /home/dev/.conda/envs/docai/bin/python - << 'PYEOF'
 import os, sys, json
@@ -197,6 +203,9 @@ export VLM_MODEL="Qwen/Qwen2.5-VL-3B-Instruct"
 python scripts/compare_vlm.py --data $DOCAI_WORKSPACE/data/sroie/test --limit 12 --degrade blur --severity 0.4
 # -> docs/logs/vlm_compare_*.md
 ```
+
+`scripts/eval_multidoc.py` giờ nhận thêm `--statement-table-mode rules|tatr|hybrid` để benchmark
+riêng statement parser theo từng mode mà không cần sửa code pipeline.
 
 ## 6. Tests + Chaos + CI
 ```bash

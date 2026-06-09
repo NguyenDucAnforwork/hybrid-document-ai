@@ -1,0 +1,179 @@
+{
+  "mode": "rules",
+  "ok": true,
+  "reason": null,
+  "rows_detected": 22,
+  "column_order": [
+    "ref",
+    "date",
+    "description",
+    "amount",
+    "balance"
+  ],
+  "semantic_columns": {
+    "ref": 0,
+    "date": 1,
+    "description": 2,
+    "amount": 3,
+    "balance": 4
+  },
+  "required_columns_ok": true,
+  "joined_rows": [
+    {
+      "ref": "VPBANK",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "SAO KE TAI KHOAN",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "So TK: 392332146881",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "Chu tai khoan: PHAM THU D",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "Ky:01/01/2024 - 31/01/2024",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "So du dau: 52,194,716",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "So du cuoi: 56,464,716",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "SoCT",
+      "date": "Ngay",
+      "description": "Dien giai",
+      "amount": "So tien",
+      "balance": "So du"
+    },
+    {
+      "ref": "CT234",
+      "date": "02/01/2024",
+      "description": "ONLINE TRANSFER",
+      "amount": "9,900,000 CR 62,094,716",
+      "balance": ""
+    },
+    {
+      "ref": "CT722",
+      "date": "03/01/2024",
+      "description": "BILL PAYMENT",
+      "amount": "9,900,000 CR 71,994,716",
+      "balance": ""
+    },
+    {
+      "ref": "CT278",
+      "date": "04/01/2024",
+      "description": "ATM WITHDRAWAL REFU9ND90ONLOINE DRRANGFER94 ,716",
+      "amount": "",
+      "balance": ""
+    },
+    {
+      "ref": "CT889",
+      "date": "05/01/2024",
+      "description": "INTERESTPOSPURCHAEOOOCR",
+      "amount": "",
+      "balance": "62,144,716"
+    },
+    {
+      "ref": "CT290",
+      "date": "06/01/2024",
+      "description": "INTEREST ATM WITHDRZWADOO CR",
+      "amount": "",
+      "balance": "62,264,716"
+    },
+    {
+      "ref": "CT952",
+      "date": "07/01/2024",
+      "description": "REFUND",
+      "amount": "4,500,000 CR",
+      "balance": "66,764,716"
+    },
+    {
+      "ref": "CT942",
+      "date": "08/01/2024",
+      "description": "QR PAYMENT",
+      "amount": "350,000 DR",
+      "balance": "66,414,716"
+    },
+    {
+      "ref": "CT194",
+      "date": "09/01/2024",
+      "description": "ONLINE TRANSFER INTRGU,OOO DR",
+      "amount": "",
+      "balance": "56,514,716"
+    },
+    {
+      "ref": "CT335",
+      "date": "10/01/2024",
+      "description": "ONLINE TRANSFER",
+      "amount": "50,000 DR",
+      "balance": "56,464,716"
+    },
+    {
+      "ref": "CT208",
+      "date": "11/01/2024",
+      "description": "ATM WITHDRAWAL FEE9,900,000 CR",
+      "amount": "",
+      "balance": "66,364,716"
+    },
+    {
+      "ref": "CT492",
+      "date": "12/01/2024",
+      "description": "POS PURCHASE FEE 120,000 DR",
+      "amount": "",
+      "balance": "66,244,716"
+    },
+    {
+      "ref": "CT362",
+      "date": "13/01/2024",
+      "description": "FEE QR PAYMENT INTEREGTOOO CR",
+      "amount": "",
+      "balance": "66,364,716"
+    },
+    {
+      "ref": "CT646",
+      "date": "14/01/2024",
+      "description": "REFUND",
+      "amount": "9,900,000 DR",
+      "balance": "56,464,716"
+    },
+    {
+      "ref": "Tong",
+      "date": "",
+      "description": "",
+      "amount": "",
+      "balance": "56,464,716"
+    }
+  ],
+  "line_items_count": 12,
+  "assignment_rate": 1.0
+}

@@ -128,6 +128,12 @@ Khi 1 doc sai/lỗi, **cô lập theo stage**, đừng đoán. Mỗi stage emit 
 - **Kỳ vọng:** CPU latency ~800ms → ~200–300ms sau INT8 quantization. GPU latency đã đủ nhanh (41ms không phải bottleneck — OCR mới là bottleneck thật ở ~1.5–2s).
 - **Lưu ý khi export:** LayoutLMv3 cần image + bbox + input_ids — ONNX export phải khai báo đủ dynamic axes cho cả 3 inputs.
 
+### ĐÃ GẶP: zero-shot Table Transformer nuốt dòng đầu vào header row
+- **Triệu chứng:** debug JSON của statement parser cho thấy ô header chứa cả anchor **và** giá trị transaction đầu tiên, ví dụ `Ngay 02/01/2024` hoặc `9,900,000 CR 62,094,716 So du`. Khi đó semantic mapping vẫn “có đủ cột”, nhưng amount/balance của các dòng sau bị lệch nặng.
+- **Chẩn đoán:** `microsoft/table-transformer-structure-recognition` detect đúng khung bảng/row/column ở mức hình học, nhưng trên statement synthetic nó đôi lúc gộp row header với row transaction đầu tiên. Đây là lỗi structure tốt-bề-ngoài nhưng sai cell assignment.
+- **Sửa:** thêm `header_contaminated` guard trong `docai/statement.py`; nếu header row của zero-shot parser đã chứa date/amount thật thì mode `hybrid` fallback về rule parser. Đồng thời lưu overlay + JSON vào `DOCAI_STATEMENT_DEBUG_DIR` để nhìn rõ row/column/cell assignment.
+- **Phòng ngừa:** zero-shot table structure chỉ nên là một tín hiệu phụ/ablation path. Muốn thắng parser rules hiện tại phải fine-tune hoặc domain-adapt trên statement bank thật, không chỉ drop-in model pretrained.
+
 ### ĐÃ GẶP: PP-OCRv4 hallucinate chữ Hán trên ảnh rotate/low-res (CJK hallucination)
 - **Triệu chứng:** `merchant_name` trả về Unicode Hán tự (e.g. `"我物出门，#不处或更"`) khi OCR ảnh receipt Latin/Malay bị rotate hoặc low-resolution. Phát hiện khi test live trên `000.jpg` (SROIE). JSON response có `\uXXXX` escape sequences decode ra chữ Trung Quốc.
 - **Chẩn đoán:**

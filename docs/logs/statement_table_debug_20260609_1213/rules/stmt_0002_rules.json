@@ -1,0 +1,144 @@
+{
+  "mode": "rules",
+  "ok": true,
+  "reason": null,
+  "rows_detected": 17,
+  "column_order": [
+    "date",
+    "description",
+    "debit",
+    "credit",
+    "balance"
+  ],
+  "semantic_columns": {
+    "date": 0,
+    "description": 1,
+    "debit": 2,
+    "credit": 3,
+    "balance": 4
+  },
+  "required_columns_ok": true,
+  "joined_rows": [
+    {
+      "date": "ACB",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "ACCOUNTSTATEMENT",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "A/C No:2281086253",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Account Holder: TRAN THI BICH",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Period:01/01/2025-31/01/2025",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Opening Balance:43,267,301",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Closing Balance: 45,827,301",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": ""
+    },
+    {
+      "date": "Date",
+      "description": "Description",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance"
+    },
+    {
+      "date": "02/01/2025",
+      "description": "INTERESTPOSPURCRASBOODR",
+      "debit": "",
+      "credit": "",
+      "balance": "43,147,301"
+    },
+    {
+      "date": "03/01/2025",
+      "description": "ATMWITHDRAWALQRPASOIENGOGADARYCREDIT",
+      "debit": "",
+      "credit": "",
+      "balance": "41,647,301"
+    },
+    {
+      "date": "04/01/2025",
+      "description": "ATM WITHDRAWAL ONLINE TRANSFER9FPDO,O00",
+      "debit": "",
+      "credit": "",
+      "balance": "51,547,301"
+    },
+    {
+      "date": "05/01/2025",
+      "description": "SALARY CREDIT BILI,BAOMENTDR",
+      "debit": "",
+      "credit": "",
+      "balance": "50,047,301"
+    },
+    {
+      "date": "06/01/2025",
+      "description": "POS PURCHASE SALAAY5OREDDT DR",
+      "debit": "",
+      "credit": "",
+      "balance": "45,547,301"
+    },
+    {
+      "date": "07/01/2025",
+      "description": "SALARY CREDIT",
+      "debit": "120,000 DR",
+      "credit": "",
+      "balance": "45,427,301"
+    },
+    {
+      "date": "08/01/2025",
+      "description": "REFUND",
+      "debit": "",
+      "credit": "350,000",
+      "balance": "45,777,301"
+    },
+    {
+      "date": "09/01/2025",
+      "description": "BILL PAYMENT",
+      "debit": "",
+      "credit": "50,000",
+      "balance": "45,827,301"
+    },
+    {
+      "date": "Total",
+      "description": "",
+      "debit": "",
+      "credit": "",
+      "balance": "45,827,301"
+    }
+  ],
+  "line_items_count": 8,
+  "assignment_rate": 1.0
+}

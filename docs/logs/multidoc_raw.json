@@ -8,30 +8,30 @@
   "bank_statement_HARD": {
     "routing_to_statement": 1.0,
     "header_exact_match": {
-      "bank_name": 0.9,
+      "bank_name": 1.0,
       "account_number": 1.0,
-      "account_holder": 0.9,
-      "statement_period": 0.433,
-      "opening_balance": 0.9,
-      "closing_balance": 0.9
+      "account_holder": 0.875,
+      "statement_period": 0.5,
+      "opening_balance": 1.0,
+      "closing_balance": 1.0
     },
-    "table_row_f1": 0.926,
-    "table_amount_accuracy": 0.463,
-    "table_description_anls@.5": 0.996,
-    "n": 30
+    "table_row_f1": 0.943,
+    "table_amount_accuracy": 0.427,
+    "table_description_anls@.5": 0.96,
+    "n": 8
   },
   "payment_order": {
     "routing_correct": 1.0,
     "field_exact_match": {
-      "bank_name": 0.9,
+      "bank_name": 0.875,
       "sender_name": 1.0,
-      "sender_account": 0.967,
-      "beneficiary_name": 0.933,
+      "sender_account": 1.0,
+      "beneficiary_name": 0.875,
       "beneficiary_account": 1.0,
       "amount": 1.0,
       "content": 1.0,
       "date": 1.0
     },
-    "n": 30
+    "n": 8
   }
 }
