@@ -103,6 +103,24 @@ Numbers below: **synthetic n=30, small images, LayoutLMv3/VLM off, 48-core box**
 CV line: *“profiled a hybrid OCR-KIE pipeline and optimized CPU-bound inference serving under
 production latency constraints, with p50/p95/p99 benchmarks, monitoring and a CI regression gate.”*
 
+## 6b. OCR recognizer fine-tune — MC-OCR 2021 (WP-3) — NEW
+Source: `docs/wp3-ocr-finetune-report.md`, `docs/logs/ocr_rec_eval_20260609_1112.md`
+
+Fine-tuned a compact CRNN+CTC Vietnamese receipt recognizer (torch→ONNX), optional config-
+switchable adapter. OCR-level, MC-OCR val n=1300:
+
+| recognizer | CER | exact-line | WER | p50 ms/crop |
+|---|---|---|---|---|
+| default (RapidOCR, Chinese dict) | 0.3197 | 0.149 | 0.836 | 27.1 |
+| **fine-tuned CRNN** | **0.0853** | **0.599** | **0.246** | **9.4** |
+
+**CER ↓ 73.3% relative**, and faster. Train 227s, peak VRAM 1316 MB (≤1h/≤5GB ✓).
+**Honest caveat:** the large gain is partly because RapidOCR's default rec can't emit Vietnamese
+diacritics (language mismatch) — finding is "in-language recognizer wins", not "CRNN is SOTA".
+Downstream SROIE anti-regression not run (Vietnamese recognizer would regress on English — the
+expected, documented outcome → production needs per-language routing, not a global swap).
+`mcocr_val_sample_df.csv` is a stub, not downstream gold.
+
 ## 7. Robustness (real SROIE, n=30, severity 0.6)
 Source: `docs/logs/robustness_*.md`
 

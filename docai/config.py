@@ -56,6 +56,13 @@ BLUR_THRESHOLD = 100.0
 DARK_THRESHOLD = 50.0
 MIN_DIM = 480  # synthetic images are small; keep modest
 
+# OCR recognizer selection (WP-3). Default keeps the production RapidOCR path
+# untouched; 'ppocr_vi_mcocr_ft' swaps in the fine-tuned CRNN recognizer adapter
+# (detector still RapidOCR). Switchable per-deployment with no code change.
+OCR_RECOGNIZER = os.environ.get("DOCAI_OCR_RECOGNIZER", "rapidocr_default")  # | ppocr_vi_mcocr_ft
+OCR_REC_MODEL = os.environ.get("DOCAI_OCR_REC_MODEL", str(MODELS_DIR / "ocr/vi_mcocr_crnn_ft/model.onnx"))
+OCR_REC_DICT = os.environ.get("DOCAI_OCR_REC_DICT", str(MODELS_DIR / "ocr/vi_mcocr_crnn_ft/vi_dict.txt"))
+
 # HuggingFace dataset/model repos (namespace resolved at runtime).
 HF_USER = os.environ.get("HF_USER", "banhchungtuongot")
 HF_MODEL_REPO = f"{HF_USER}/hybrid-docai-kie"

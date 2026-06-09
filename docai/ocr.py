@@ -32,11 +32,37 @@ def _get_engine():
     return _engine
 
 
+def _crop(image_bgr: np.ndarray, box) -> np.ndarray:
+    xs = [p[0] for p in box]; ys = [p[1] for p in box]
+    x0, y0 = max(0, int(min(xs))), max(0, int(min(ys)))
+    x1, y1 = int(max(xs)), int(max(ys))
+    c = image_bgr[y0:y1, x0:x1]
+    return c if c.size else image_bgr
+
+
 def run_ocr(image_bgr: np.ndarray) -> list[dict]:
-    """Return tokens: [{text, bbox:[x0,y0,x1,y1], conf}]."""
+    """Return tokens: [{text, bbox:[x0,y0,x1,y1], conf}].
+
+    Detector is always RapidOCR. The recognizer is swappable (WP-3): with
+    DOCAI_OCR_RECOGNIZER=ppocr_vi_mcocr_ft the fine-tuned CRNN re-recognizes each
+    detected box; the token schema is identical so KIE/router/pipeline are
+    unchanged (enables clean on/off + downstream anti-regression)."""
+    from . import config
     result, _ = _get_engine()(image_bgr)
+    rows = result or []
+
+    rec = None
+    if config.OCR_RECOGNIZER != "rapidocr_default":
+        from .ocr_recognizer import get_recognizer
+        rec = get_recognizer()           # None if artifacts missing -> graceful fallback
+
+    if rec is not None and rows:
+        crops = [_crop(image_bgr, box) for box, _, _ in rows]
+        ft = rec.recognize(crops)
+        rows = [(box, ft[i][0], ft[i][1]) for i, (box, _, _) in enumerate(rows)]
+
     tokens = []
-    for box, text, conf in (result or []):
+    for box, text, conf in rows:
         xs = [p[0] for p in box]
         ys = [p[1] for p in box]
         tokens.append({

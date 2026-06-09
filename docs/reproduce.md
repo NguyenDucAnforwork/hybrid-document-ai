@@ -204,6 +204,19 @@ print(f"\nn={n} date={ok_date/n:.1%} total={ok_total/n:.1%} SILENT_WRONG={silent
 PYEOF
 ```
 
+## 4h. WP-3 — OCR recognizer fine-tune (MC-OCR 2021) — xem `docs/wp3-ocr-finetune-report.md`
+```bash
+export DOCAI_WORKSPACE=/data/nvidia-ai-workspace
+# (creds KAGGLE_USERNAME/KAGGLE_KEY trong .env) tải full zip + extract subset:
+python scripts/wp3_prepare_ocr.py                                   # -> data/processed/mcocr_ocr + sanity_report.json
+python training/train_ocr_rec.py --dry-run --batch 128              # check VRAM ≤5GB
+python training/train_ocr_rec.py --epochs 60 --batch 128 --lr 1e-3  # CRNN+CTC, ~4 phút, ONNX export
+python scripts/eval_ocr_rec.py --recognizer both --limit 1300       # -> docs/logs/ocr_rec_eval_*.md
+# Kết quả: CER 0.32 -> 0.085 (-73% rel), exact-line 0.15 -> 0.60. Bật adapter:
+DOCAI_OCR_RECOGNIZER=ppocr_vi_mcocr_ft python -m uvicorn app.main:app
+# CAVEAT: baseline RapidOCR dùng dict tiếng Trung (mismatch) -> gain phần lớn do đúng ngôn ngữ.
+```
+
 ## 5. VLM hard-case fallback (3 cách — xem `docs/vlm-deployment.md`)
 ```bash
 # (A) Modal serverless GPU — KHUYẾN NGHỊ cho máy GPU nhỏ (RTX 1650). Endpoint đang LIVE.
