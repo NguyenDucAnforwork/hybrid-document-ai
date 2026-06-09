@@ -67,13 +67,16 @@ OCR_REC_MODEL = os.environ.get("DOCAI_OCR_REC_MODEL", str(MODELS_DIR / "ocr/vi_m
 OCR_REC_DICT = os.environ.get("DOCAI_OCR_REC_DICT", str(MODELS_DIR / "ocr/vi_mcocr_crnn_ft_taskf/vi_dict.txt"))
 # WP-3 Task D: min Vietnamese-diacritic ratio of default OCR text to route a doc to
 # the fine-tuned VI recognizer in 'auto' mode (English/SROIE stays on default).
-OCR_VI_DIACRITIC_MIN = float(os.environ.get("DOCAI_OCR_VI_DIACRITIC_MIN", "0.015"))
+OCR_VI_DIACRITIC_MIN = float(os.environ.get("DOCAI_OCR_VI_DIACRITIC_MIN", "0.06"))
 # WP-3 Task B: split detector boxes that merge two fields horizontally.
 LINE_REGROUP = os.environ.get("DOCAI_LINE_REGROUP", "0") == "1"
 # WP-3 Task E: split tall over-merged boxes into rows via horizontal projection
 # (FT/auto recognizer path only). Triggers when box height > ratio * median height.
 PROJECTION_SPLIT = os.environ.get("DOCAI_PROJECTION_SPLIT", "0") == "1"
 PROJECTION_SPLIT_RATIO = float(os.environ.get("DOCAI_PROJECTION_SPLIT_RATIO", "1.8"))
+# WP-3 Task B (latency): only re-recognize field-critical boxes with the FT model
+# (top region / date / money / field anchors); keep default text elsewhere.
+OCR_FIELD_CRITICAL = os.environ.get("DOCAI_OCR_FIELD_CRITICAL", "0") == "1"
 # WP-3 Task C: flag geometric risk (skew) -> needs_review.
 GEOMETRY_RISK_ANGLE = float(os.environ.get("DOCAI_GEOMETRY_RISK_ANGLE", "8.0"))
 

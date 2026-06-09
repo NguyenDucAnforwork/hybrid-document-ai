@@ -359,3 +359,14 @@ Thử trước: chỉ hạ global `MIN_FIELD_CONFIDENCE` → bắt thêm đượ
   - Full-image **mọi field cải thiện**: SELLER 0.179→0.111, ADDRESS 0.319→**0.255** (đạt mục tiêu của Task E nhưng bằng F!), TIMESTAMP 0.454→0.376, TOTAL 0.152→0.108, **macro 0.265→0.205 (-23%)**. Clean-val CER cũng tốt lên 0.085→0.063.
   - Done-criteria: TIMESTAMP ≤0.35 **suýt trượt (0.376)** nhưng cải thiện rõ; TOTAL/ADDRESS KHÔNG regress (tốt lên). Model F thành default.
 - **Bài học lớn nhất WP-3:** crop-level metric đẹp + detector recall cao vẫn có thể fail full-image vì **train/serve crop mismatch**. Fix đúng KHÔNG phải đổi detector / deskew / grouping mà là **cho recognizer thấy crop kiểu detector**. Đo lường loại trừ 3 hướng sai trước khi tìm ra hướng đúng — đó là giá trị của debug pipeline định lượng.
+
+### ADR-22: Latency ablation + language routing — 2 bug do đo lường lộ ra
+
+- **Task B — latency ablation (clean sequential, n=40):** default p50 **1.09s** (macro CER 0.38) · ft_all p50 **2.88s** (0.24, rerec 41) · ft_critical p50 **2.51s** (0.26, rerec 25) · auto p50 **2.74s** (0.24, rerec 34).
+  - **Không config FT nào đạt mục tiêu 1.3–1.6s.** Root cause: pipeline chạy **full RapidOCR (det+rec ~1.1s) RỒI** crop + FT re-recognize → +~1.8s overhead; FT batched bản thân rẻ. `ft_critical` chỉ giảm 2.88→2.51s (re-rec 41→25) và **làm TOTAL_COST tệ đi** (0.101→0.148). → Muốn 1.3–1.6s phải có **detector-only path** (bỏ RapidOCR rec, chỉ lấy box) — internal API, là việc sau.
+- **2 bug do ablation lộ ra (giá trị của đo lường):**
+  1. `auto` đo tỉ lệ dấu tiếng Việt trên **output của default (dict tiếng Trung)** — mà default KHÔNG thể sinh dấu → doc tiếng Việt luôn bị coi là non-VN → không bao giờ route sang FT (auto ≡ default, macro 0.34). **Fix:** probe bằng chính FT recognizer trên ~8 box rồi mới quyết định.
+  2. config default trỏ sang model Task F nhưng `ocr_recognizer.load()` **hardcode path v1** → vẫn load v1 (macro 0.265 thay vì 0.205). **Fix:** load đọc `config.OCR_REC_MODEL/DICT`.
+- **Task C — routing anti-regression (SROIE EN vs MC-OCR VI):** threshold tune 0.015→**0.06** (0.015 cho 30% English false-positive vì VI-CRNN hallucinate dấu trên crop tiếng Anh). Kết quả @0.06: **VI→FT 88%, EN→default 100%, 60/60 doc English token-identical với default (zero regression), routing accuracy 0.942.**
+  - **Chứng minh được:** recognizer tiếng Việt **KHÔNG đụng** receipt tiếng Anh — `auto` giữ chúng ở RapidOCR default, output y hệt. Per-language routing, không swap global.
+- **Bài học:** chạy ablation concurrent để nhanh (GPU/CPU rảnh) nhưng **latency tuyệt đối phải đo serial** (concurrent contention thổi p50 lên ~4×); CER thì concurrent vẫn đúng. Và ablation 4 nhánh là cách rẻ nhất để lộ bug routing + bug load model.

@@ -29,11 +29,9 @@ class FineTunedRecognizer:
     @classmethod
     def load(cls, onnx_path: str | None = None, dict_path: str | None = None):
         import onnxruntime as ort
-        from .config import MODELS_DIR
-        onnx_path = Path(onnx_path or os.environ.get(
-            "DOCAI_OCR_REC_MODEL", MODELS_DIR / "ocr/vi_mcocr_crnn_ft/model.onnx"))
-        dict_path = Path(dict_path or os.environ.get(
-            "DOCAI_OCR_REC_DICT", MODELS_DIR / "ocr/vi_mcocr_crnn_ft/vi_dict.txt"))
+        from .config import OCR_REC_MODEL, OCR_REC_DICT   # env-overridable; defaults to Task F model
+        onnx_path = Path(onnx_path or OCR_REC_MODEL)
+        dict_path = Path(dict_path or OCR_REC_DICT)
         if not onnx_path.exists():
             raise FileNotFoundError(f"missing recognizer ONNX: {onnx_path}")
         if not dict_path.exists():

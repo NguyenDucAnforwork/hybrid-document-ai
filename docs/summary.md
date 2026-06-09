@@ -146,6 +146,15 @@ crop/pad/blur jitter) — fixed **all four fields**: full-image macro CER **0.26
 also improved 0.085→0.063. Now the config-default recognizer. The measurement bought the real lesson:
 not the detector, not deskew, not grouping — **fine-tune the recognizer on detector-style crops.**
 
+**Latency ablation + language routing** (`docs/logs/latency_ablation_*.md`, `routing_antiregression_*.md`):
+clean p50 default 1.09s · ft_all 2.88s · ft_critical 2.51s · auto 2.74s — no FT config hits the
+1.3–1.6s target (cost is full RapidOCR det+rec *then* re-crop; needs a detector-only path). The
+ablation also exposed two bugs (now fixed): `auto` measured diacritics on the Chinese-default output
+(never detected Vietnamese) and the loader ignored the config's Task F model path. **Routing
+anti-regression @ threshold 0.06: VI→CRNN 88%, EN (SROIE)→default 100%, 60/60 English docs
+byte-identical to default = zero regression, accuracy 0.942** — the Vietnamese model does not touch
+English receipts.
+
 ## 7. Robustness (real SROIE, n=30, severity 0.6)
 Source: `docs/logs/robustness_*.md`
 
