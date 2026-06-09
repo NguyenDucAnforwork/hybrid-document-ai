@@ -106,6 +106,35 @@ TOTAL/ADDRESS **did not regress — they improved strongly**. Task F model is no
 under shared load); the FT path re-recognizes crops so it is heavier than default — measure on a
 quiet box before quoting.
 
+## Task B (revisited) — latency ablation (`scripts/eval_latency_ablation.py`, clean sequential n=40)
+
+| config | macro CER | p50 | p95 | mean #re-rec | TOTAL_COST CER |
+|---|---|---|---|---|---|
+| default (RapidOCR) | 0.38 | **1.09s** | 1.56s | 0 | 0.225 |
+| ft_all | 0.24 | 2.88s | 3.46s | 41 | **0.101** |
+| ft_critical | 0.26 | 2.51s | 2.95s | 25 | 0.148 |
+| auto | 0.24 | 2.74s | — | 34 | 0.098 |
+
+**No FT config reaches the 1.3–1.6s target.** The cost is structural: the pipeline runs **full
+RapidOCR det+rec (~1.1s) and THEN re-crops + FT-recognizes** — the FT model itself is cheap
+(batched), but RapidOCR's wasted rec + per-crop work adds ~1.8s. `ft_critical` (re-recognize only
+top/date/money/anchor boxes) trims 2.88→2.51s but **regresses TOTAL_COST 0.101→0.148** (some total
+lines not flagged critical). **Real latency fix = a detector-only path** (RapidOCR det, skip its
+rec) — internal-API work, the next WP. Note: measure latency **serially** — concurrent ablation
+runs inflate p50 ~4× from CPU contention (CER is concurrency-safe).
+
+## Task C (revisited) — language-routing anti-regression (`scripts/eval_routing.py`)
+Threshold tuned **0.015 → 0.06** (0.015 false-routed 30% of English to FT — the VI-CRNN hallucinates
+diacritics on English crops). At 0.06, on a mixed set (MC-OCR VI + real SROIE EN):
+
+- **Vietnamese → CRNN: 88%** · **English (SROIE) → default: 100%** · routing accuracy **0.942**
+- **60/60 default-routed English docs are token-identical to default → zero regression on English.**
+
+Answers the key question — *does the Vietnamese model break English receipts?* **No:** `auto` keeps
+them on RapidOCR default with byte-identical output. Two bugs fixed en route (see debug WP3-9/10):
+`auto` was reading diacritics off the Chinese-default output (never detected VI), and the loader
+ignored the config's Task F model.
+
 ## Bottom line
 The full-image gap is **not detection** (recall 0.978), **not deskew**, and **not line-grouping**
 (Tasks B & E both measured null on ADDRESS). It is the **crop-distribution gap**: the recognizer

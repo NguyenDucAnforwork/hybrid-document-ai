@@ -76,6 +76,25 @@ Khi 1 doc sai/lỗi, **cô lập theo stage**, đừng đoán. Mỗi stage emit 
 - **Kết quả:** full-image macro CER 0.265→0.205; SELLER 0.179→0.111, ADDRESS 0.319→0.255, TIMESTAMP 0.454→0.376, TOTAL 0.152→0.108; clean-val 0.085→0.063. Model F thành default.
 - **Phòng ngừa/đo:** TIMESTAMP suýt trượt ≤0.35 (0.376) → time/date strings vẫn khó nhất; latency full-image đo trên máy rảnh (FT re-recognize nặng hơn default, số p50 nhiễu theo tải máy).
 
+### WP3-9: `auto` routing không bao giờ phát hiện tiếng Việt (signal vòng tròn)
+- **Triệu chứng:** ablation cho `auto` macro CER = 0.34 (= default), mean #rerec = 0 → auto KHÔNG route doc MC-OCR sang FT.
+- **Chẩn đoán:** `auto` tính tỉ lệ dấu tiếng Việt trên **output của recognizer default** (PP-OCR dict tiếng Trung). Default KHÔNG thể sinh dấu tiếng Việt → ratio ≈ 0 cho cả doc tiếng Việt → luôn ở dưới threshold.
+- **Nguyên nhân gốc:** dùng chính cái cần phát hiện (khả năng đọc tiếng Việt) làm tín hiệu, nhưng tín hiệu lấy từ model KHÔNG đọc được tiếng Việt → vòng tròn.
+- **Cách sửa:** probe bằng **FT recognizer** trên ~8 box rồi đo dấu trên output FT (FT mới sinh được dấu). VI→ratio cao→FT; EN→ratio thấp→default.
+- **Phòng ngừa:** tín hiệu routing phải độc lập với thứ đang route; ablation 4 nhánh là cách lộ ra (auto≡default là cờ đỏ).
+
+### WP3-10: config trỏ Task F nhưng vẫn load model v1
+- **Triệu chứng:** ablation `ft_all` macro 0.265 (số của v1) thay vì 0.205 (Task F), dù config default đã đổi sang `vi_mcocr_crnn_ft_taskf`.
+- **Nguyên nhân gốc:** `ocr_recognizer.load()` **hardcode** `os.environ.get("DOCAI_OCR_REC_MODEL", MODELS_DIR/"...vi_mcocr_crnn_ft/...")` → bỏ qua `config.OCR_REC_MODEL` đã cập nhật.
+- **Cách sửa:** `load()` đọc `config.OCR_REC_MODEL/OCR_REC_DICT` (đã resolve env + default Task F).
+- **Phòng ngừa:** một nguồn sự thật cho path (config), KHÔNG lặp default ở nhiều chỗ. Verify bằng `r.session._model_path` sau load.
+
+### WP3-11: ablation chạy serial quá chậm / latency nhiễu khi chạy concurrent
+- **Triệu chứng:** ablation 4 config × 80 ảnh "rất chậm" dù GPU gần rảnh.
+- **Chẩn đoán:** OCR chạy **CPU** (onnxruntime CPU + RapidOCR), GPU không giúp; script còn chạy `process_document` (OCR lần 2) chỉ để lấy needs_review → 2× OCR mỗi ảnh × 4 config serial.
+- **Cách sửa:** bỏ pass `process_document` (thêm `--with-review` mặc định off); thêm `--only` để chạy 4 config song song (48 core). **Nhưng:** chạy concurrent thổi p50 lên ~4× do contention CPU → **latency tuyệt đối phải đo SERIAL**; CER thì concurrent vẫn đúng.
+- **Phòng ngừa:** tách "đo đúng" (CER, concurrent OK) khỏi "đo nhanh" (latency, phải serial/quiet box).
+
 ---
 
 ## Pre-mortem (lỗi dự kiến — xác nhận khi chạy)

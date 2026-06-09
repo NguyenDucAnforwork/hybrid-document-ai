@@ -123,7 +123,12 @@ or paddle at inference).
    doesn't benefit from Vietnamese text — consistent with "per-language routing, not global swap".
 2. **`mcocr_val_sample_df.csv` is a placeholder stub** (`anno_texts="abc abc abc"`) — NOT a
    trustworthy downstream gold validation set. No downstream KIE-validation claim is made from it.
-3. **Detector / line-grouping is now the bottleneck** (see full-image section) — the next WP, not this one.
+3. **Full-image bottleneck — investigated in `docs/wp3-detector-analysis.md`:** detector recall is
+   fine (0.978); the loss was the recognizer crop-distribution gap, fixed by **Task F** (detector-style
+   crop augmentation: full-image macro CER 0.265→0.205). Line-grouping fixes (Task B horizontal, Task E
+   projection) measured **null**. Latency ablation: no FT config hits 1.3–1.6s (needs a detector-only
+   path); **language routing (Task C)** proven — English/SROIE stays on default, byte-identical (zero
+   regression), Vietnamese → CRNN. Remaining open item: detector-only path for latency.
 
 ## Deviation from plan (documented)
 Plan named a PP-OCR/PaddleOCR recognizer. Under the single-main-env constraint + base running
